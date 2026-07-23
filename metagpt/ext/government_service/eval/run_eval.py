@@ -80,9 +80,9 @@ def main() -> None:
     parser.add_argument(
         "--knowledge-backend",
         type=str,
-        choices=["keyword", "rag"],
+        choices=["keyword", "rag", "tfidf"],
         default="rag",
-        help="知识库后端：keyword 使用关键词检索，rag 使用本地 FAISS 检索并支持 fallback",
+        help="知识库后端：keyword 使用关键词检索，rag 使用本地 FAISS 检索，tfidf 使用统计向量检索",
     )
     args = parser.parse_args()
     result = asyncio.run(_run(args.dataset, knowledge_backend=args.knowledge_backend))

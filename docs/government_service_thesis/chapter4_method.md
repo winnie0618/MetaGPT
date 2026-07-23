@@ -10,7 +10,7 @@
 
 ## 4.3 RAG 检索机制
 
-系统提供 `RAGPolicyKnowledgeBase` 和 `SimplePolicyKnowledgeBase` 两级知识库。前者基于本地 FAISS 索引完成政策片段检索，当前使用确定性哈希向量保证离线可复现；后者用于 FAISS 依赖缺失或索引失败时的关键词检索 fallback。知识库状态通过 `status()` 暴露，包括后端类型、就绪状态、错误原因、文档目录和索引目录，避免检索模块初始化失败后静默降级。
+系统提供 `SimplePolicyKnowledgeBase`、`RAGPolicyKnowledgeBase` 和 `TfidfPolicyKnowledgeBase` 三类知识库。`SimplePolicyKnowledgeBase` 使用关键词匹配作为基础 baseline；`RAGPolicyKnowledgeBase` 基于本地 FAISS 索引完成政策片段检索，当前使用确定性哈希向量保证离线可复现；`TfidfPolicyKnowledgeBase` 使用 TF-IDF 与中文分词特征形成统计向量检索 baseline。知识库状态通过 `status()` 暴露，包括后端类型、就绪状态、错误原因、文档目录和索引目录，避免检索模块初始化失败后静默降级。
 
 ## 4.4 材料与流程生成机制
 

@@ -1,6 +1,6 @@
 # 政务服务智能体系统依赖说明
 
-本系统第一阶段规则版不依赖外部大模型即可运行，默认使用 `SimplePolicyKnowledgeBase` 进行关键词检索。当前阶段已经支持本地 FAISS 检索，并通过 `RAGPolicyKnowledgeBase` 自动构建和加载索引；LLM 生成、中文语义 embedding 和 Web 演示属于后续可选增强。
+本系统第一阶段规则版不依赖外部大模型即可运行，默认使用 `SimplePolicyKnowledgeBase` 进行关键词检索。当前阶段已经支持本地 FAISS 检索和 TF-IDF 统计向量检索；LLM 生成、中文语义 embedding 和 Web 演示属于后续可选增强。
 
 ## 基础运行
 
@@ -37,6 +37,16 @@ policy_metadata.json
 
 如果 `faiss-cpu` 不可用或索引构建失败，系统会自动回退到关键词检索，并在 `status()` 中记录失败原因。这种降级设计保证依赖缺失时系统仍可完成政策检索、风险判断、追溯日志和评测。
 
+## TF-IDF 统计向量检索依赖
+
+`TfidfPolicyKnowledgeBase` 使用当前虚拟环境中的 `scikit-learn` 和 `jieba`，不需要下载外部模型。它可以通过以下命令单独评测：
+
+```powershell
+venv\Scripts\python.exe -m metagpt.ext.government_service.eval.run_eval --dataset data\government_service\test_questions.jsonl --knowledge-backend tfidf --output workspace\government_service\eval_tfidf.json
+```
+
+该后端适合作为关键词检索和深度语义 embedding 检索之间的统计向量 baseline。
+
 ## 可选语义检索增强
 
 后续若要将哈希向量替换为中文语义 embedding，可在网络条件允许时安装：
@@ -51,7 +61,7 @@ venv\Scripts\python.exe -m pip install sentence-transformers
 venv\Scripts\python.exe -m pip install llama-index-core llama-index-vector-stores-faiss llama-index-embeddings-huggingface sentence-transformers
 ```
 
-论文实验中建议将“关键词检索”“本地 FAISS 哈希检索”“中文 embedding + FAISS 检索”作为三个检索对照组。
+论文实验中建议将“关键词检索”“本地 FAISS 哈希检索”“TF-IDF 统计向量检索”“中文 embedding + FAISS 检索”作为检索对照组。
 
 ## Web 演示依赖
 

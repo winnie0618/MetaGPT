@@ -6,7 +6,7 @@
 
 ## 5.2 核心模块
 
-`schema.py` 定义 `ServiceIntent`、`PolicyEvidence`、`MaterialItem`、`ProcessStep`、`RiskAssessment`、`TraceRecord` 和 `ServiceResponse` 等数据结构。`knowledge_base.py` 提供本地 FAISS 检索知识库和关键词 fallback，并将索引持久化到 `workspace/government_service/rag`。`trace_record.py` 将执行过程写入 `workspace/government_service/traces`。
+`schema.py` 定义 `ServiceIntent`、`PolicyEvidence`、`MaterialItem`、`ProcessStep`、`RiskAssessment`、`TraceRecord` 和 `ServiceResponse` 等数据结构。`knowledge_base.py` 提供关键词检索、本地 FAISS 检索和 TF-IDF 统计向量检索，其中 FAISS 索引持久化到 `workspace/government_service/rag`。`trace_record.py` 将执行过程写入 `workspace/government_service/traces`。
 
 ## 5.3 核心 Action
 
@@ -28,6 +28,7 @@ venv\Scripts\python.exe -m metagpt.ext.government_service.demo_cli
 
 ```powershell
 venv\Scripts\python.exe -m metagpt.ext.government_service.eval.run_eval --dataset data\government_service\test_questions.jsonl --output workspace\government_service\eval_results.json
+venv\Scripts\python.exe -m metagpt.ext.government_service.eval.run_retrieval_compare --dataset data\government_service\test_questions.jsonl --output workspace\government_service\retrieval_compare.json
 ```
 
 Web 演示在安装 Streamlit 后运行：

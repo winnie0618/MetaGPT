@@ -279,3 +279,107 @@ class RAGPolicyKnowledgeBase:
         if re.fullmatch(r"[\u4e00-\u9fff]+", token) and len(token) > 2:
             features.extend(token[i : i + 2] for i in range(len(token) - 1))
         return features
+
+
+class TfidfPolicyKnowledgeBase:
+    """Offline TF-IDF retriever with Chinese word and character features."""
+
+    def __init__(self, raw_docs_dir: str | Path | None = None):
+        self.raw_docs_dir = Path(raw_docs_dir) if raw_docs_dir else RAW_DOCS_DIR
+        self._fallback = SimplePolicyKnowledgeBase(self.raw_docs_dir)
+        self._chunks: list[dict] = []
+        self._vectorizer: Any = None
+        self._matrix: Any = None
+        self._ready = False
+        self.backend = "tfidf"
+        self.last_error = ""
+
+    def build_index(self) -> None:
+        self._chunks = []
+        self._vectorizer = None
+        self._matrix = None
+        self._ready = False
+        self.last_error = ""
+        try:
+            from sklearn.feature_extraction.text import TfidfVectorizer
+
+            self._chunks = self._load_chunks()
+            if not self._chunks:
+                self.backend = "fallback"
+                self.last_error = "未发现可用于构建 TF-IDF 索引的文档。"
+                return
+
+            corpus = [f"{chunk['title']}\n{chunk['snippet']}" for chunk in self._chunks]
+            self._vectorizer = TfidfVectorizer(tokenizer=self._tokenize_for_tfidf, token_pattern=None, lowercase=False)
+            self._matrix = self._vectorizer.fit_transform(corpus)
+            self._ready = True
+            self.backend = "tfidf"
+        except Exception as exc:
+            self._ready = False
+            self.backend = "fallback"
+            self.last_error = f"TF-IDF 初始化失败: {exc}"
+
+    def retrieve(self, query: str, top_k: int = 3) -> list[PolicyEvidence]:
+        try:
+            self._ensure_index()
+            if self._ready and self._vectorizer is not None and self._matrix is not None:
+                query_vector = self._vectorizer.transform([query])
+                scores = (self._matrix @ query_vector.T).toarray().ravel()
+                top_indices = np.argsort(scores)[::-1][: min(top_k, len(self._chunks))]
+                evidences: list[PolicyEvidence] = []
+                for index in top_indices:
+                    score = float(scores[int(index)])
+                    if score <= 0:
+                        continue
+                    item = self._chunks[int(index)]
+                    evidences.append(
+                        PolicyEvidence(
+                            doc_id=item["doc_id"],
+                            title=item["title"],
+                            snippet=item["snippet"],
+                            score=round(score, 4),
+                        )
+                    )
+                if evidences:
+                    self.last_error = ""
+                    return evidences
+        except Exception as exc:
+            self._ready = False
+            self.backend = "fallback"
+            self.last_error = f"TF-IDF 检索失败: {exc}"
+
+        fallback_evidences = self._fallback.retrieve(query=query, top_k=top_k)
+        self.backend = "fallback"
+        if not self.last_error:
+            self.last_error = "TF-IDF 未命中，使用关键词 fallback 检索。"
+        return fallback_evidences
+
+    def status(self) -> dict[str, Any]:
+        return {
+            "backend": self.backend,
+            "ready": self.backend == "tfidf" and self._ready,
+            "last_error": self.last_error,
+            "raw_docs_dir": str(self.raw_docs_dir),
+            "persist_dir": "",
+        }
+
+    def _ensure_index(self) -> None:
+        if self._ready and self._vectorizer is not None and self._matrix is not None:
+            return
+        self.build_index()
+
+    def _load_chunks(self) -> list[dict]:
+        kb = SimplePolicyKnowledgeBase(self.raw_docs_dir)
+        kb.load()
+        return kb._chunks
+
+    @staticmethod
+    def _tokenize_for_tfidf(text: str) -> list[str]:
+        terms = SimplePolicyKnowledgeBase._tokenize(text)
+        try:
+            import jieba
+
+            terms.extend(token.strip() for token in jieba.cut(text) if len(token.strip()) >= 2)
+        except Exception:
+            pass
+        return list(dict.fromkeys(terms))

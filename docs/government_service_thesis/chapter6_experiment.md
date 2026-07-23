@@ -6,13 +6,14 @@
 
 ## 6.2 对比方法
 
-论文实验可设置四类方法：普通模板回答、关键词检索 + 模板回答、本地 FAISS 检索 + 模板回答、本文的可追溯多智能体协同方法。后续接入开源大模型后，可增加 LLM 直接回答、LLM + RAG 和 RAG + 多智能体协同方法作为对比。
+论文实验可设置五类方法：普通模板回答、关键词检索 + 模板回答、本地 FAISS 检索 + 模板回答、TF-IDF 统计向量检索 + 模板回答、本文的可追溯多智能体协同方法。后续接入开源大模型后，可增加 LLM 直接回答、LLM + RAG 和 RAG + 多智能体协同方法作为对比。
 
 当前代码已经支持通过 `--knowledge-backend` 切换检索后端：
 
 ```powershell
 venv\Scripts\python.exe -m metagpt.ext.government_service.eval.run_eval --dataset data\government_service\test_questions.jsonl --knowledge-backend keyword --output workspace\government_service\eval_keyword.json
 venv\Scripts\python.exe -m metagpt.ext.government_service.eval.run_eval --dataset data\government_service\test_questions.jsonl --knowledge-backend rag --output workspace\government_service\eval_rag.json
+venv\Scripts\python.exe -m metagpt.ext.government_service.eval.run_eval --dataset data\government_service\test_questions.jsonl --knowledge-backend tfidf --output workspace\government_service\eval_tfidf.json
 ```
 
 也可以直接运行检索对比脚本：
@@ -54,9 +55,10 @@ venv\Scripts\python.exe -m metagpt.ext.government_service.eval.run_retrieval_com
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | keyword | {"keyword": 50} | 0.9233 | 0.8333 | 1.0000 | 1.0000 | 0.6019 | 0.4020 |
 | rag | {"rag": 50} | 0.8933 | 0.7600 | 1.0000 | 1.0000 | 0.6389 | 0.5098 |
+| tfidf | {"tfidf": 50} | 0.9300 | 0.8300 | 1.0000 | 1.0000 | 0.6389 | 0.3431 |
 
-与关键词检索 baseline 相比，本地 FAISS 哈希检索在材料命中率和流程步骤命中率上有所提升，但政策依据关键词命中率下降。论文中可将这一现象作为误差分析：哈希向量提高了近似匹配能力，但仍缺少真正的中文语义表示，后续需要接入中文 embedding 模型进行对照实验。
+与关键词检索 baseline 相比，本地 FAISS 哈希检索在材料命中率和流程步骤命中率上有所提升，但政策依据关键词命中率下降。TF-IDF 统计向量检索在回答关键词命中率和材料命中率上表现较好，但流程步骤命中率偏低。论文中可将这一现象作为误差分析：不同检索方法对下游材料抽取、流程规划和证据覆盖的影响并不一致，后续需要接入中文 embedding 模型进行真正的语义检索对照实验。
 
 ## 6.5 后续实验扩展
 
-后续应接入中文 embedding 模型并重建 FAISS 索引，比较关键词检索、本地哈希 FAISS 和语义 FAISS 的政策依据命中率差异；接入 Qwen 等开源模型后，比较模板回答与 LLM 生成回答在完整性、可读性和幻觉率上的差异。
+后续应接入中文 embedding 模型并重建 FAISS 索引，比较关键词检索、本地哈希 FAISS、TF-IDF 统计向量检索和语义 FAISS 的政策依据命中率差异；接入 Qwen 等开源模型后，比较模板回答与 LLM 生成回答在完整性、可读性和幻觉率上的差异。

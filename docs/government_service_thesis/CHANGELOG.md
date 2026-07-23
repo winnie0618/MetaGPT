@@ -55,6 +55,20 @@ venv\Scripts\python.exe -m metagpt.ext.government_service.eval.run_retrieval_com
 
 该能力用于支撑论文第 6 章的消融实验和对比实验，不需要额外依赖。
 
+## 追加更新：TF-IDF 统计向量检索 baseline
+
+系统新增 `TfidfPolicyKnowledgeBase`，使用 `scikit-learn` 的 TF-IDF 向量化和 `jieba` 中文分词构建离线统计向量检索 baseline。`knowledge_backend` 现在支持 `keyword`、`rag` 和 `tfidf` 三种后端，`run_retrieval_compare.py` 默认输出三组检索对比结果。
+
+最新 50 条样本对比结果如下：
+
+| backend | actual_backend_counts | answer_keyword_hit_rate | evidence_keyword_hit_rate | risk_accuracy | human_review_accuracy | material_hit_rate | process_step_hit_rate |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| keyword | {"keyword": 50} | 0.9233 | 0.8333 | 1.0000 | 1.0000 | 0.6019 | 0.4020 |
+| rag | {"rag": 50} | 0.8933 | 0.7600 | 1.0000 | 1.0000 | 0.6389 | 0.5098 |
+| tfidf | {"tfidf": 50} | 0.9300 | 0.8300 | 1.0000 | 1.0000 | 0.6389 | 0.3431 |
+
+该结果为论文提供了更完整的检索消融实验基础：关键词检索在证据覆盖上更稳定，本地 FAISS 哈希检索对流程步骤更友好，TF-IDF 在回答关键词和材料抽取上表现较好，但流程步骤召回偏弱。
+
 ## 主要改动
 
 ### 1. 政务服务知识库扩充
