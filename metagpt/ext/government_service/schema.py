@@ -59,6 +59,7 @@ class TraceRecord(BaseModel):
     human_review_required: bool
     answer: str
     timestamp: datetime
+    metadata: dict = Field(default_factory=dict)
 
 
 class ServiceResponse(BaseModel):

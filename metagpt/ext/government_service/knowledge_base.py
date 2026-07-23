@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
+from typing import Any
 
 from metagpt.const import DEFAULT_WORKSPACE_ROOT
 from metagpt.ext.government_service.config import RAW_DOCS_DIR
@@ -107,16 +108,21 @@ class SimplePolicyKnowledgeBase:
 
 
 class RAGPolicyKnowledgeBase:
-    """RAG / FAISS knowledge base with fallback to SimplePolicyKnowledgeBase."""
+    """RAG / FAISS knowledge base with explicit fallback reporting."""
 
     def __init__(self, raw_docs_dir: str | Path | None = None, persist_dir: str | Path | None = None):
         self.raw_docs_dir = Path(raw_docs_dir) if raw_docs_dir else RAW_DOCS_DIR
         self.persist_dir = Path(persist_dir) if persist_dir else (DEFAULT_WORKSPACE_ROOT / "government_service" / "rag")
-        self._engine = None
+        self._engine: Any = None
         self._fallback = SimplePolicyKnowledgeBase(self.raw_docs_dir)
         self._ready = False
+        self.backend = "fallback"
+        self.last_error = ""
 
     def build_index(self) -> None:
+        self.last_error = ""
+        self._engine = None
+        self._ready = False
         try:
             from metagpt.rag.engines import SimpleEngine
             from metagpt.rag.schema import FAISSIndexConfig, FAISSRetrieverConfig
@@ -124,39 +130,54 @@ class RAGPolicyKnowledgeBase:
             files = sorted(self.raw_docs_dir.glob("*.txt")) + sorted(self.raw_docs_dir.glob("*.md"))
             if not files:
                 self._engine = None
-                self._ready = True
+                self._ready = False
+                self.backend = "fallback"
+                self.last_error = "未发现可用于构建 RAG 索引的文档。"
                 return
 
             self.persist_dir.mkdir(parents=True, exist_ok=True)
-            self._engine = SimpleEngine.from_docs(input_files=[str(f) for f in files], retriever_configs=[FAISSRetrieverConfig()])
+            self._engine = SimpleEngine.from_docs(
+                input_files=[str(f) for f in files],
+                retriever_configs=[FAISSRetrieverConfig()],
+            )
             self._engine.persist(self.persist_dir)
             self._ready = True
-        except Exception:
+            self.backend = "rag"
+        except Exception as exc:
             self._engine = None
-            self._ready = True
+            self._ready = False
+            self.backend = "fallback"
+            self.last_error = f"RAG 初始化失败: {exc}"
 
-    def _ensure_engine(self):
-        if self._ready:
+    def _ensure_engine(self) -> None:
+        if self._ready and self.backend == "rag" and self._engine is not None:
             return
-        index_path = self.persist_dir
+
+        self.last_error = ""
         try:
             from metagpt.rag.engines import SimpleEngine
             from metagpt.rag.schema import FAISSIndexConfig, FAISSRetrieverConfig
 
-            if index_path.exists() and any(index_path.iterdir()):
+            if self.persist_dir.exists() and any(self.persist_dir.iterdir()):
                 self._engine = SimpleEngine.from_index(
-                    index_config=FAISSIndexConfig(persist_path=index_path), retriever_configs=[FAISSRetrieverConfig()]
+                    index_config=FAISSIndexConfig(persist_path=self.persist_dir),
+                    retriever_configs=[FAISSRetrieverConfig()],
                 )
-            else:
-                self.build_index()
-        except Exception:
+                self._ready = True
+                self.backend = "rag"
+                return
+
+            self.build_index()
+        except Exception as exc:
             self._engine = None
-            self._ready = True
+            self._ready = False
+            self.backend = "fallback"
+            self.last_error = f"RAG 初始化失败: {exc}"
 
     def retrieve(self, query: str, top_k: int = 3) -> list[PolicyEvidence]:
         try:
             self._ensure_engine()
-            if self._engine:
+            if self._engine and self.backend == "rag":
                 nodes = self._engine.retrieve(query)
                 evidences: list[PolicyEvidence] = []
                 for node in nodes[:top_k]:
@@ -170,6 +191,23 @@ class RAGPolicyKnowledgeBase:
                     )
                 if evidences:
                     return evidences
-        except Exception:
-            pass
-        return self._fallback.retrieve(query=query, top_k=top_k)
+        except Exception as exc:
+            self._engine = None
+            self._ready = False
+            self.backend = "fallback"
+            self.last_error = f"RAG 检索失败: {exc}"
+
+        fallback_evidences = self._fallback.retrieve(query=query, top_k=top_k)
+        self.backend = "fallback"
+        if not self.last_error:
+            self.last_error = "RAG 未启用，使用关键词 fallback 检索。"
+        return fallback_evidences
+
+    def status(self) -> dict[str, Any]:
+        return {
+            "backend": self.backend,
+            "ready": self.backend == "rag" and self._ready,
+            "last_error": self.last_error,
+            "raw_docs_dir": str(self.raw_docs_dir),
+            "persist_dir": str(self.persist_dir),
+        }

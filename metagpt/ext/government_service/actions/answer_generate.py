@@ -17,11 +17,30 @@ class AnswerGenerateAction(Action):
         process_steps: list[ProcessStep],
         risk_assessment: RiskAssessment,
         human_review_message: str = "",
+        knowledge_base_backend: str | None = None,
+        knowledge_base_status: dict | None = None,
     ) -> str:
         if not self.use_llm:
-            return self._build_template_answer(query, evidences, materials, process_steps, risk_assessment, human_review_message)
+            return self._build_template_answer(
+                query,
+                evidences,
+                materials,
+                process_steps,
+                risk_assessment,
+                human_review_message,
+                knowledge_base_backend,
+                knowledge_base_status,
+            )
 
-        prompt = self._build_prompt(query, intent, evidences, materials, process_steps, risk_assessment, human_review_message)
+        prompt = self._build_prompt(
+            query,
+            intent,
+            evidences,
+            materials,
+            process_steps,
+            risk_assessment,
+            human_review_message,
+        )
         return await self._aask(prompt)
 
     @staticmethod
@@ -32,9 +51,15 @@ class AnswerGenerateAction(Action):
         process_steps: list[ProcessStep],
         risk_assessment: RiskAssessment,
         human_review_message: str,
+        knowledge_base_backend: str | None = None,
+        knowledge_base_status: dict | None = None,
     ) -> str:
         _ = query
         lines = ["办理建议：请结合当地办事指南和已检索政策材料办理。"]
+        if knowledge_base_backend:
+            lines.append(f"知识库后端：{knowledge_base_backend}")
+        if knowledge_base_status:
+            lines.append(f"知识库状态：{knowledge_base_status.get('backend', 'fallback')} | ready={knowledge_base_status.get('ready', False)}")
         if evidences:
             lines.append("政策依据：")
             for item in evidences:

@@ -28,6 +28,7 @@ class ServiceCoordinator:
     async def run(self, query: str) -> ServiceResponse:
         intent = await self.intent_action.run(query)
         evidences = await self.policy_expert.retrieve(query)
+        kb_status = self.policy_expert.knowledge_base.status()
 
         process_steps = []
         materials = []
@@ -47,6 +48,8 @@ class ServiceCoordinator:
             process_steps=process_steps,
             risk_assessment=risk_assessment,
             human_review_message=human_review_message,
+            knowledge_base_backend=kb_status.get("backend", "fallback"),
+            knowledge_base_status=kb_status,
         )
 
         trace_id = self._new_trace_id()
@@ -68,6 +71,11 @@ class ServiceCoordinator:
             human_review_required=risk_assessment.human_review_required,
             answer=direct_answer,
             timestamp=datetime.now(),
+            metadata={
+                "backend": kb_status.get("backend", "fallback"),
+                "intent_confidence": intent.confidence,
+                "knowledge_base_status": kb_status,
+            },
         )
         trace_record.actions = [a for a in trace_record.actions if a]
         await self.trace_action.run(trace_record)
