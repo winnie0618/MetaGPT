@@ -14,6 +14,8 @@ venv\Scripts\python.exe -m metagpt.ext.government_service.eval.run_ablation --da
 venv\Scripts\python.exe -m metagpt.ext.government_service.local_web_demo --host 127.0.0.1 --port 8765
 ```
 
+当前评测数据集包含 100 条样本，其中高风险样本 23 条、材料清单样本 37 条、流程步骤样本 42 条。
+
 ## 本地 FAISS 检索依赖
 
 当前可复现实验版本使用 `faiss-cpu` 和确定性哈希向量构建本地索引，不依赖 `llama_index` 或外部 embedding 服务。若环境中已经安装 `faiss-cpu`，首次检索时会自动在 `workspace/government_service/rag` 下生成：

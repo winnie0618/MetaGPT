@@ -59,13 +59,13 @@ venv\Scripts\python.exe -m metagpt.ext.government_service.eval.run_retrieval_com
 
 系统新增 `TfidfPolicyKnowledgeBase`，使用 `scikit-learn` 的 TF-IDF 向量化和 `jieba` 中文分词构建离线统计向量检索 baseline。`knowledge_backend` 现在支持 `keyword`、`rag` 和 `tfidf` 三种后端，`run_retrieval_compare.py` 默认输出三组检索对比结果。
 
-最新 50 条样本对比结果如下：
+最新 100 条样本对比结果如下：
 
 | backend | actual_backend_counts | answer_keyword_hit_rate | evidence_keyword_hit_rate | risk_accuracy | human_review_accuracy | material_hit_rate | process_step_hit_rate |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| keyword | {"keyword": 50} | 0.9233 | 0.8333 | 1.0000 | 1.0000 | 0.6019 | 0.4020 |
-| rag | {"rag": 50} | 0.8933 | 0.7600 | 1.0000 | 1.0000 | 0.6389 | 0.5098 |
-| tfidf | {"tfidf": 50} | 0.9300 | 0.8300 | 1.0000 | 1.0000 | 0.6389 | 0.3431 |
+| keyword | {"keyword": 100} | 0.8367 | 0.8117 | 1.0000 | 1.0000 | 0.6306 | 0.2103 |
+| rag | {"rag": 100} | 0.8217 | 0.7500 | 1.0000 | 1.0000 | 0.6486 | 0.2778 |
+| tfidf | {"tfidf": 100} | 0.8500 | 0.8150 | 1.0000 | 1.0000 | 0.6081 | 0.2103 |
 
 该结果为论文提供了更完整的检索消融实验基础：关键词检索在证据覆盖上更稳定，本地 FAISS 哈希检索对流程步骤更友好，TF-IDF 在回答关键词和材料抽取上表现较好，但流程步骤召回偏弱。
 
@@ -87,14 +87,18 @@ venv\Scripts\python.exe -m metagpt.ext.government_service.local_web_demo --host 
 
 系统新增多智能体模块开关，`GovServiceWorkflow` 可分别关闭流程规划、风险审核和追溯记录模块。`run_eval.py` 支持 `--disable-process-planner`、`--disable-risk-auditor` 和 `--disable-trace-record` 参数；新增 `run_ablation.py` 一次性运行完整系统和三种消融变体。
 
-最新 RAG 后端消融结果如下：
+最新 RAG 后端 100 条样本消融结果如下：
 
 | variant | answer_keyword_hit_rate | evidence_keyword_hit_rate | risk_accuracy | human_review_accuracy | material_hit_rate | process_step_hit_rate | trace_recorded_rate |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| full | 0.8933 | 0.7600 | 1.0000 | 1.0000 | 0.6389 | 0.5098 | 1.0000 |
-| no_process_planner | 0.6800 | 0.7600 | 1.0000 | 1.0000 | 0.0000 | 0.0000 | 1.0000 |
-| no_risk_auditor | 0.8033 | 0.7600 | 0.5200 | 0.7800 | 0.6389 | 0.5098 | 1.0000 |
-| no_trace_record | 0.8933 | 0.7600 | 1.0000 | 1.0000 | 0.6389 | 0.5098 | 0.0000 |
+| full | 0.8217 | 0.7500 | 1.0000 | 1.0000 | 0.6486 | 0.2778 | 1.0000 |
+| no_process_planner | 0.6150 | 0.7500 | 1.0000 | 1.0000 | 0.0000 | 0.0000 | 1.0000 |
+| no_risk_auditor | 0.7117 | 0.7500 | 0.5400 | 0.7700 | 0.6486 | 0.2778 | 1.0000 |
+| no_trace_record | 0.8217 | 0.7500 | 1.0000 | 1.0000 | 0.6486 | 0.2778 | 0.0000 |
+
+## 追加更新：100 条评测数据集
+
+将 `data/government_service/test_questions.jsonl` 从 50 条扩充到 100 条，覆盖政策咨询、申请条件、材料清单、办理流程、高风险决策、隐私保护、申诉复核和复杂组合问题。当前样本包含低风险 54 条、中风险 23 条、高风险 23 条，其中材料样本 37 条、流程样本 42 条。
 
 ## 主要改动
 
