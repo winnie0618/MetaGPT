@@ -9,6 +9,7 @@
 ```powershell
 venv\Scripts\python.exe -m pytest tests\metagpt\ext\government_service -q
 venv\Scripts\python.exe -m metagpt.ext.government_service.eval.run_eval --dataset data\government_service\test_questions.jsonl --output workspace\government_service\eval_results.json
+venv\Scripts\python.exe -m metagpt.ext.government_service.eval.run_retrieval_compare --dataset data\government_service\test_questions.jsonl --output workspace\government_service\retrieval_compare.json
 ```
 
 ## 本地 FAISS 检索依赖

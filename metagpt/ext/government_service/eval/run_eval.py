@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+from collections import Counter
 from pathlib import Path
 
 from metagpt.ext.government_service.eval.dataset import load_samples
@@ -10,13 +11,13 @@ from metagpt.ext.government_service.eval.metrics import bool_match, contains_hit
 from metagpt.ext.government_service.workflow import GovServiceWorkflow
 
 
-async def _run(dataset_path: str) -> None:
+async def evaluate(dataset_path: str, knowledge_backend: str = "rag") -> dict | None:
     samples = load_samples(dataset_path)
     if not samples:
         print("未加载到评估样本。")
-        return
+        return None
 
-    workflow = GovServiceWorkflow()
+    workflow = GovServiceWorkflow(knowledge_backend=knowledge_backend)
     answer_scores = []
     evidence_scores = []
     risk_scores = []
@@ -26,9 +27,12 @@ async def _run(dataset_path: str) -> None:
     material_samples = []
     process_samples = []
     high_risk_samples = []
+    backend_counter: Counter[str] = Counter()
 
     for sample in samples:
         resp = await workflow.run(sample.query)
+        kb_status = workflow.coordinator.policy_expert.last_status
+        backend_counter[kb_status.get("backend", "unknown")] += 1
         answer_scores.append(contains_hit(resp.direct_answer, sample.expected_answer_contains))
         evidence_scores.append(keyword_hit_rate(" ".join(e.snippet for e in resp.policy_evidence), sample.expected_evidence_keywords))
         risk_scores.append(exact_match(resp.risk_assessment.risk_level, sample.expected_risk_level))
@@ -46,6 +50,8 @@ async def _run(dataset_path: str) -> None:
             high_risk_samples.append(sample)
 
     result = {
+        "requested_backend": knowledge_backend,
+        "actual_backend_counts": dict(sorted(backend_counter.items())),
         "sample_count": len(samples),
         "answer_keyword_hit_rate": sum(answer_scores) / len(answer_scores),
         "evidence_keyword_hit_rate": sum(evidence_scores) / len(evidence_scores),
@@ -57,7 +63,13 @@ async def _run(dataset_path: str) -> None:
         "process_sample_count": len(process_samples),
         "high_risk_sample_count": len(high_risk_samples),
     }
-    print(json.dumps(result, ensure_ascii=False, indent=2))
+    return result
+
+
+async def _run(dataset_path: str, knowledge_backend: str = "rag") -> dict | None:
+    result = await evaluate(dataset_path=dataset_path, knowledge_backend=knowledge_backend)
+    if result:
+        print(json.dumps(result, ensure_ascii=False, indent=2))
     return result
 
 
@@ -65,8 +77,15 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--dataset", type=str, required=True, help="jsonl 数据集路径")
     parser.add_argument("--output", type=str, default="", help="输出 json 文件路径")
+    parser.add_argument(
+        "--knowledge-backend",
+        type=str,
+        choices=["keyword", "rag"],
+        default="rag",
+        help="知识库后端：keyword 使用关键词检索，rag 使用本地 FAISS 检索并支持 fallback",
+    )
     args = parser.parse_args()
-    result = asyncio.run(_run(args.dataset))
+    result = asyncio.run(_run(args.dataset, knowledge_backend=args.knowledge_backend))
     if args.output and result:
         out_path = Path(args.output)
         out_path.parent.mkdir(parents=True, exist_ok=True)

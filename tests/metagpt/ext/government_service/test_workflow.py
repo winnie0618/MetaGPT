@@ -21,3 +21,16 @@ async def test_workflow_returns_service_response(tmp_path):
     assert len(response.policy_evidence) >= 1
     assert len(response.materials) >= 1
     assert len(response.process_steps) >= 1
+
+
+@pytest.mark.asyncio
+async def test_workflow_supports_keyword_backend(tmp_path):
+    raw_dir = tmp_path / "raw_docs"
+    raw_dir.mkdir(parents=True, exist_ok=True)
+    (raw_dir / "policy_1.txt").write_text("补贴申请需要身份证明和毕业证书。", encoding="utf-8")
+
+    workflow = GovServiceWorkflow(raw_docs_dir=str(raw_dir), trace_dir=str(tmp_path / "traces"), knowledge_backend="keyword")
+    response = await workflow.run("补贴申请需要什么材料？")
+
+    assert response.policy_evidence
+    assert workflow.coordinator.policy_expert.last_status["backend"] == "keyword"

@@ -43,6 +43,18 @@
 
 该结果说明，本地哈希 FAISS 检索已经能够支撑端到端流程，但政策证据命中率仍有提升空间。论文后续实验应继续加入中文 embedding 模型作为语义检索增强对照。
 
+## 追加更新：检索后端对比实验
+
+系统新增 `knowledge_backend` 配置，可在 `GovServiceWorkflow` 中显式选择 `keyword` 或 `rag`。评测脚本 `run_eval.py` 增加 `--knowledge-backend` 参数，并记录实际后端分布；新增 `run_retrieval_compare.py` 用于一次性比较关键词检索和本地 FAISS 检索，并输出 JSON 与 Markdown 表格。
+
+运行命令：
+
+```powershell
+venv\Scripts\python.exe -m metagpt.ext.government_service.eval.run_retrieval_compare --dataset data\government_service\test_questions.jsonl --output workspace\government_service\retrieval_compare.json
+```
+
+该能力用于支撑论文第 6 章的消融实验和对比实验，不需要额外依赖。
+
 ## 主要改动
 
 ### 1. 政务服务知识库扩充

@@ -16,9 +16,14 @@ from metagpt.ext.government_service.schema import ServiceResponse, TraceRecord
 class ServiceCoordinator:
     """Coordinate the government service assistant via role chain."""
 
-    def __init__(self, raw_docs_dir: str | None = None, trace_dir: str | None = None):
+    def __init__(
+        self,
+        raw_docs_dir: str | None = None,
+        trace_dir: str | None = None,
+        knowledge_backend: str = "rag",
+    ):
         self.intent_action = IntentRecognizeAction()
-        self.policy_expert = PolicyExpert(raw_docs_dir=raw_docs_dir)
+        self.policy_expert = PolicyExpert(raw_docs_dir=raw_docs_dir, knowledge_backend=knowledge_backend)
         self.process_planner = ProcessPlanner()
         self.risk_auditor = RiskAuditor()
         self.answer_action = AnswerGenerateAction(use_llm=False)
@@ -28,7 +33,7 @@ class ServiceCoordinator:
     async def run(self, query: str) -> ServiceResponse:
         intent = await self.intent_action.run(query)
         evidences = await self.policy_expert.retrieve(query)
-        kb_status = self.policy_expert.knowledge_base.status()
+        kb_status = self.policy_expert.last_status
 
         process_steps = []
         materials = []
