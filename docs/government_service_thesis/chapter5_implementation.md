@@ -6,7 +6,7 @@
 
 ## 5.2 核心模块
 
-`schema.py` 定义 `ServiceIntent`、`PolicyEvidence`、`MaterialItem`、`ProcessStep`、`RiskAssessment`、`TraceRecord` 和 `ServiceResponse` 等数据结构。`knowledge_base.py` 提供 RAG 知识库和关键词 fallback。`trace_record.py` 将执行过程写入 `workspace/government_service/traces`。
+`schema.py` 定义 `ServiceIntent`、`PolicyEvidence`、`MaterialItem`、`ProcessStep`、`RiskAssessment`、`TraceRecord` 和 `ServiceResponse` 等数据结构。`knowledge_base.py` 提供本地 FAISS 检索知识库和关键词 fallback，并将索引持久化到 `workspace/government_service/rag`。`trace_record.py` 将执行过程写入 `workspace/government_service/traces`。
 
 ## 5.3 核心 Action
 

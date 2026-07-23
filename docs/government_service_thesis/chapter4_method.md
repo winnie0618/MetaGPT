@@ -10,7 +10,7 @@
 
 ## 4.3 RAG 检索机制
 
-系统提供 `RAGPolicyKnowledgeBase` 和 `SimplePolicyKnowledgeBase` 两级知识库。前者用于接入 MetaGPT RAG / FAISS，后者用于依赖缺失时的关键词检索 fallback。知识库状态通过 `status()` 暴露，包括后端类型、就绪状态、错误原因、文档目录和索引目录，避免 RAG 初始化失败后静默降级。
+系统提供 `RAGPolicyKnowledgeBase` 和 `SimplePolicyKnowledgeBase` 两级知识库。前者基于本地 FAISS 索引完成政策片段检索，当前使用确定性哈希向量保证离线可复现；后者用于 FAISS 依赖缺失或索引失败时的关键词检索 fallback。知识库状态通过 `status()` 暴露，包括后端类型、就绪状态、错误原因、文档目录和索引目录，避免检索模块初始化失败后静默降级。
 
 ## 4.4 材料与流程生成机制
 

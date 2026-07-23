@@ -5,9 +5,43 @@
 ## 提交信息
 
 - Commit: `ad1af678`
+- Follow-up commit: `071df599`
 - Branch: `main`
 - Remote: `https://github.com/winnie0618/MetaGPT.git`
-- Commit message: `Enhance government service agent evaluation assets`
+- Commit messages: `Enhance government service agent evaluation assets`, `Document GovTrace agent updates`
+
+## 追加更新：本地 FAISS 检索可运行
+
+在后续实现中，`RAGPolicyKnowledgeBase` 已从“仅暴露降级状态”推进为可运行的本地 FAISS 检索模块。系统会读取 `data/government_service/raw_docs/` 下的政策文本，使用确定性哈希向量构建可复现的 384 维向量，并将 `policy.faiss` 与 `policy_metadata.json` 持久化到 `workspace/government_service/rag`。元数据记录政策文本指纹，源文档变化后会自动重建索引。在当前环境下，知识库状态为：
+
+```json
+{
+  "backend": "rag",
+  "ready": true,
+  "last_error": ""
+}
+```
+
+如果 FAISS 初始化或检索失败，系统仍会自动回退到关键词检索，并在回答和追溯日志中记录具体原因。
+
+本地 FAISS 版本的 50 条样本评测结果如下：
+
+```json
+{
+  "sample_count": 50,
+  "answer_keyword_hit_rate": 0.8933,
+  "evidence_keyword_hit_rate": 0.76,
+  "risk_accuracy": 1.0,
+  "human_review_accuracy": 1.0,
+  "material_hit_rate": 0.6389,
+  "process_step_hit_rate": 0.5098,
+  "material_sample_count": 18,
+  "process_sample_count": 17,
+  "high_risk_sample_count": 11
+}
+```
+
+该结果说明，本地哈希 FAISS 检索已经能够支撑端到端流程，但政策证据命中率仍有提升空间。论文后续实验应继续加入中文 embedding 模型作为语义检索增强对照。
 
 ## 主要改动
 
@@ -23,9 +57,9 @@
 
 增强了 `IntentRecognizeAction` 和 `RiskAssessAction` 的关键词规则，补充识别审批结果、补贴金额、到账、最终资格认定、最终批准、申诉、虚假材料、重复申领、跨地区申请、公示名单和保证发放等风险表达。高风险问题会触发人工复核提示，避免系统承诺审批结果、补贴金额或最终行政结论。
 
-### 4. RAG 降级状态可见
+### 4. RAG 状态可见
 
-`RAGPolicyKnowledgeBase` 增加显式状态记录，包括 `backend`、`ready`、`last_error`、`raw_docs_dir` 和 `persist_dir`。当前环境缺少 `llama_index` 时，系统会回退到关键词检索，并在回答和追溯日志中记录 fallback 原因，而不是静默失败。
+`RAGPolicyKnowledgeBase` 增加显式状态记录，包括 `backend`、`ready`、`last_error`、`raw_docs_dir` 和 `persist_dir`。系统优先使用本地 FAISS 检索；当 FAISS 不可用或索引失败时，会回退到关键词检索，并在回答和追溯日志中记录 fallback 原因，而不是静默失败。
 
 ### 5. 材料与流程抽取增强
 
@@ -37,7 +71,7 @@
 
 ### 7. 论文材料补充
 
-扩写 `docs/government_service_thesis/` 下的论文辅助材料，并新增 `setup_dependencies.md`。`figures.md` 包含系统架构、多智能体协同、RAG 降级、风险分级和追溯日志的 Mermaid 图草稿。
+扩写 `docs/government_service_thesis/` 下的论文辅助材料，并新增 `setup_dependencies.md`。`figures.md` 包含系统架构、多智能体协同、本地 FAISS 检索与降级、风险分级和追溯日志的 Mermaid 图草稿。
 
 ## 验证结果
 
@@ -74,4 +108,4 @@ test_questions_count: 50
 
 ## 当前限制
 
-当前环境尚未安装 `llama_index` 和 `streamlit`。因此 RAG / FAISS 模块当前处于 fallback 模式，Web Demo 文件已支持降级提示但尚未在 Streamlit 环境中完成真实页面验收。后续工作应优先安装 RAG 和 Web 依赖，完成真实 FAISS 检索、Web 演示和 LLM 生成模式实验。
+当前环境尚未安装 `streamlit`，Web Demo 文件已支持安装提示但尚未在 Streamlit 环境中完成真实页面验收。当前 FAISS 版本使用确定性哈希向量而非中文语义 embedding，适合作为可复现实验基线；后续工作应优先接入中文 embedding、Web 演示和 LLM 生成模式实验。

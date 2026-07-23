@@ -1,6 +1,6 @@
 # 政务服务智能体系统依赖说明
 
-本系统第一阶段规则版不依赖外部大模型即可运行，默认使用 `SimplePolicyKnowledgeBase` 进行关键词检索。第二阶段增强版支持 MetaGPT RAG / FAISS、LLM 生成和 Web 演示，需要额外安装可选依赖。
+本系统第一阶段规则版不依赖外部大模型即可运行，默认使用 `SimplePolicyKnowledgeBase` 进行关键词检索。当前阶段已经支持本地 FAISS 检索，并通过 `RAGPolicyKnowledgeBase` 自动构建和加载索引；LLM 生成、中文语义 embedding 和 Web 演示属于后续可选增强。
 
 ## 基础运行
 
@@ -11,25 +11,46 @@ venv\Scripts\python.exe -m pytest tests\metagpt\ext\government_service -q
 venv\Scripts\python.exe -m metagpt.ext.government_service.eval.run_eval --dataset data\government_service\test_questions.jsonl --output workspace\government_service\eval_results.json
 ```
 
-## RAG / FAISS 增强依赖
+## 本地 FAISS 检索依赖
 
-若要启用 MetaGPT RAG / FAISS 检索，需要安装：
+当前可复现实验版本使用 `faiss-cpu` 和确定性哈希向量构建本地索引，不依赖 `llama_index` 或外部 embedding 服务。若环境中已经安装 `faiss-cpu`，首次检索时会自动在 `workspace/government_service/rag` 下生成：
+
+```text
+policy.faiss
+policy_metadata.json
+```
+
+索引元数据中记录政策文本指纹；当 `data/government_service/raw_docs` 下的源文档发生变化时，系统会自动重建 FAISS 索引，避免继续复用过期检索结果。
+
+运行状态示例：
+
+```json
+{
+  "backend": "rag",
+  "ready": true,
+  "last_error": "",
+  "raw_docs_dir": "E:\\MetaGPT\\data\\government_service\\raw_docs",
+  "persist_dir": "E:\\MetaGPT\\workspace\\government_service\\rag"
+}
+```
+
+如果 `faiss-cpu` 不可用或索引构建失败，系统会自动回退到关键词检索，并在 `status()` 中记录失败原因。这种降级设计保证依赖缺失时系统仍可完成政策检索、风险判断、追溯日志和评测。
+
+## 可选语义检索增强
+
+后续若要将哈希向量替换为中文语义 embedding，可在网络条件允许时安装：
+
+```powershell
+venv\Scripts\python.exe -m pip install sentence-transformers
+```
+
+也可以继续扩展为 LlamaIndex 管线：
 
 ```powershell
 venv\Scripts\python.exe -m pip install llama-index-core llama-index-vector-stores-faiss llama-index-embeddings-huggingface sentence-transformers
 ```
 
-当前环境已经安装 `faiss_cpu`，但未安装 `llama_index`，因此 `RAGPolicyKnowledgeBase` 会自动回退到关键词检索，并在 `status()` 中记录失败原因。例如：
-
-```json
-{
-  "backend": "fallback",
-  "ready": false,
-  "last_error": "RAG 初始化失败: No module named 'llama_index'"
-}
-```
-
-这种降级设计保证依赖缺失时系统仍可完成政策检索、风险判断、追溯日志和评测。
+论文实验中建议将“关键词检索”“本地 FAISS 哈希检索”“中文 embedding + FAISS 检索”作为三个检索对照组。
 
 ## Web 演示依赖
 

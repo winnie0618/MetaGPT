@@ -1,8 +1,12 @@
 from __future__ import annotations
 
+import hashlib
+import json
 import re
 from pathlib import Path
 from typing import Any
+
+import numpy as np
 
 from metagpt.const import DEFAULT_WORKSPACE_ROOT
 from metagpt.ext.government_service.config import RAW_DOCS_DIR
@@ -108,12 +112,15 @@ class SimplePolicyKnowledgeBase:
 
 
 class RAGPolicyKnowledgeBase:
-    """RAG / FAISS knowledge base with explicit fallback reporting."""
+    """Local FAISS retriever with explicit fallback reporting."""
+
+    dimensions: int = 384
 
     def __init__(self, raw_docs_dir: str | Path | None = None, persist_dir: str | Path | None = None):
         self.raw_docs_dir = Path(raw_docs_dir) if raw_docs_dir else RAW_DOCS_DIR
         self.persist_dir = Path(persist_dir) if persist_dir else (DEFAULT_WORKSPACE_ROOT / "government_service" / "rag")
         self._engine: Any = None
+        self._metadata: list[dict] = []
         self._fallback = SimplePolicyKnowledgeBase(self.raw_docs_dir)
         self._ready = False
         self.backend = "fallback"
@@ -122,13 +129,13 @@ class RAGPolicyKnowledgeBase:
     def build_index(self) -> None:
         self.last_error = ""
         self._engine = None
+        self._metadata = []
         self._ready = False
         try:
-            from metagpt.rag.engines import SimpleEngine
-            from metagpt.rag.schema import FAISSIndexConfig, FAISSRetrieverConfig
+            import faiss
 
-            files = sorted(self.raw_docs_dir.glob("*.txt")) + sorted(self.raw_docs_dir.glob("*.md"))
-            if not files:
+            chunks = self._load_chunks()
+            if not chunks:
                 self._engine = None
                 self._ready = False
                 self.backend = "fallback"
@@ -136,15 +143,23 @@ class RAGPolicyKnowledgeBase:
                 return
 
             self.persist_dir.mkdir(parents=True, exist_ok=True)
-            self._engine = SimpleEngine.from_docs(
-                input_files=[str(f) for f in files],
-                retriever_configs=[FAISSRetrieverConfig()],
-            )
-            self._engine.persist(self.persist_dir)
+            vectors = np.vstack(
+                [self._embed_text(f"{chunk['title']}\n{chunk['snippet']}") for chunk in chunks]
+            ).astype("float32")
+            index = faiss.IndexFlatIP(self.dimensions)
+            index.add(vectors)
+            faiss.write_index(index, str(self._index_path))
+            payload = {"fingerprint": self._docs_fingerprint(), "chunks": chunks}
+            self._metadata_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+
+            self._engine = index
+            self._metadata = chunks
             self._ready = True
             self.backend = "rag"
+            self.last_error = ""
         except Exception as exc:
             self._engine = None
+            self._metadata = []
             self._ready = False
             self.backend = "fallback"
             self.last_error = f"RAG 初始化失败: {exc}"
@@ -155,14 +170,20 @@ class RAGPolicyKnowledgeBase:
 
         self.last_error = ""
         try:
-            from metagpt.rag.engines import SimpleEngine
-            from metagpt.rag.schema import FAISSIndexConfig, FAISSRetrieverConfig
+            import faiss
 
-            if self.persist_dir.exists() and any(self.persist_dir.iterdir()):
-                self._engine = SimpleEngine.from_index(
-                    index_config=FAISSIndexConfig(persist_path=self.persist_dir),
-                    retriever_configs=[FAISSRetrieverConfig()],
-                )
+            if self._index_path.exists() and self._metadata_path.exists():
+                metadata_payload = json.loads(self._metadata_path.read_text(encoding="utf-8"))
+                metadata_fingerprint = ""
+                metadata_chunks = metadata_payload
+                if isinstance(metadata_payload, dict):
+                    metadata_fingerprint = str(metadata_payload.get("fingerprint", ""))
+                    metadata_chunks = metadata_payload.get("chunks", [])
+                if metadata_fingerprint != self._docs_fingerprint():
+                    self.build_index()
+                    return
+                self._engine = faiss.read_index(str(self._index_path))
+                self._metadata = metadata_chunks
                 self._ready = True
                 self.backend = "rag"
                 return
@@ -170,6 +191,7 @@ class RAGPolicyKnowledgeBase:
             self.build_index()
         except Exception as exc:
             self._engine = None
+            self._metadata = []
             self._ready = False
             self.backend = "fallback"
             self.last_error = f"RAG 初始化失败: {exc}"
@@ -177,22 +199,28 @@ class RAGPolicyKnowledgeBase:
     def retrieve(self, query: str, top_k: int = 3) -> list[PolicyEvidence]:
         try:
             self._ensure_engine()
-            if self._engine and self.backend == "rag":
-                nodes = self._engine.retrieve(query)
+            if self._engine is not None and self.backend == "rag" and self._metadata:
+                query_vector = self._embed_text(query).reshape(1, -1).astype("float32")
+                scores, indices = self._engine.search(query_vector, min(top_k, len(self._metadata)))
                 evidences: list[PolicyEvidence] = []
-                for node in nodes[:top_k]:
-                    source = node.node
-                    metadata = getattr(source, "metadata", {}) or {}
-                    doc_id = metadata.get("file_name") or metadata.get("file_path") or metadata.get("doc_id") or "rag_doc"
-                    title = metadata.get("file_name") or Path(str(metadata.get("file_path", doc_id))).stem or doc_id
-                    snippet = getattr(source, "text", "")[:400]
+                for score, index in zip(scores[0], indices[0]):
+                    if index < 0:
+                        continue
+                    item = self._metadata[int(index)]
                     evidences.append(
-                        PolicyEvidence(doc_id=str(doc_id), title=str(title), snippet=snippet, score=float(node.score or 0.0))
+                        PolicyEvidence(
+                            doc_id=item["doc_id"],
+                            title=item["title"],
+                            snippet=item["snippet"],
+                            score=round(float(score), 4),
+                        )
                     )
                 if evidences:
+                    self.last_error = ""
                     return evidences
         except Exception as exc:
             self._engine = None
+            self._metadata = []
             self._ready = False
             self.backend = "fallback"
             self.last_error = f"RAG 检索失败: {exc}"
@@ -211,3 +239,43 @@ class RAGPolicyKnowledgeBase:
             "raw_docs_dir": str(self.raw_docs_dir),
             "persist_dir": str(self.persist_dir),
         }
+
+    @property
+    def _index_path(self) -> Path:
+        return self.persist_dir / "policy.faiss"
+
+    @property
+    def _metadata_path(self) -> Path:
+        return self.persist_dir / "policy_metadata.json"
+
+    def _load_chunks(self) -> list[dict]:
+        kb = SimplePolicyKnowledgeBase(self.raw_docs_dir)
+        kb.load()
+        return kb._chunks
+
+    def _docs_fingerprint(self) -> str:
+        digest = hashlib.sha256()
+        if not self.raw_docs_dir.exists():
+            return ""
+        for file_path in sorted(self.raw_docs_dir.glob("*.txt")):
+            digest.update(file_path.name.encode("utf-8"))
+            digest.update(file_path.read_bytes())
+        return digest.hexdigest()
+
+    def _embed_text(self, text: str) -> np.ndarray:
+        vector = np.zeros(self.dimensions, dtype="float32")
+        for token in SimplePolicyKnowledgeBase._tokenize(text):
+            for feature in self._features(token):
+                digest = hashlib.md5(feature.encode("utf-8")).hexdigest()
+                vector[int(digest[:8], 16) % self.dimensions] += 1.0
+        norm = float(np.linalg.norm(vector))
+        if norm > 0:
+            vector /= norm
+        return vector
+
+    @staticmethod
+    def _features(token: str) -> list[str]:
+        features = [token]
+        if re.fullmatch(r"[\u4e00-\u9fff]+", token) and len(token) > 2:
+            features.extend(token[i : i + 2] for i in range(len(token) - 1))
+        return features

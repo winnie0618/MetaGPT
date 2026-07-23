@@ -10,7 +10,7 @@ flowchart LR
   C --> R["RiskAuditor"]
   C --> G["ProcessPlanner"]
   C --> A["AnswerGenerateAction"]
-  P --> KB["RAG / Fallback Knowledge Base"]
+  P --> KB["Local FAISS / Keyword Knowledge Base"]
   A --> O["结构化回答"]
   C --> T["TraceRecordAction"]
 ```
@@ -33,12 +33,12 @@ sequenceDiagram
   Coordinator-->>User: 返回答案和 trace_id
 ```
 
-## 图3 RAG 检索与降级流程图
+## 图3 本地 FAISS 检索与降级流程图
 
 ```mermaid
 flowchart TD
-  Q["查询"] --> S{"RAG 依赖可用?"}
-  S -- 是 --> F["FAISS 检索"]
+  Q["查询"] --> S{"FAISS 索引可用?"}
+  S -- 是 --> F["本地 FAISS 检索"]
   S -- 否 --> K["关键词 fallback"]
   F --> E["PolicyEvidence"]
   K --> E

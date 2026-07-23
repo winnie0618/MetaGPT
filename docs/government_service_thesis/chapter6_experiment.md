@@ -6,7 +6,7 @@
 
 ## 6.2 对比方法
 
-论文实验可设置三类方法：普通模板回答、关键词检索 + 模板回答、本文方法。后续安装 RAG 与 LLM 依赖后，可增加 LLM 直接回答、LLM + RAG 和 RAG + 多智能体协同方法作为对比。
+论文实验可设置四类方法：普通模板回答、关键词检索 + 模板回答、本地 FAISS 检索 + 模板回答、本文的可追溯多智能体协同方法。后续接入开源大模型后，可增加 LLM 直接回答、LLM + RAG 和 RAG + 多智能体协同方法作为对比。
 
 ## 6.3 评价指标
 
@@ -14,8 +14,27 @@
 
 ## 6.4 当前实验结果记录
 
-评测结果保存到 `workspace/government_service/eval_results.json`。当前环境未安装 `llama_index`，因此知识库后端为 fallback；未安装 `streamlit`，Web 演示以降级提示方式运行。论文中应如实说明当前实验采用关键词检索 baseline，RAG / FAISS 是可插拔增强模块。
+评测结果保存到 `workspace/government_service/eval_results.json`。当前环境已启用本地 FAISS 检索，知识库后端状态为 `rag`，索引文件保存在 `workspace/government_service/rag`。未安装 `streamlit`，因此 Web 演示以安装提示方式运行。
+
+当前本地 FAISS 版本评测结果如下：
+
+```json
+{
+  "sample_count": 50,
+  "answer_keyword_hit_rate": 0.8933,
+  "evidence_keyword_hit_rate": 0.76,
+  "risk_accuracy": 1.0,
+  "human_review_accuracy": 1.0,
+  "material_hit_rate": 0.6389,
+  "process_step_hit_rate": 0.5098,
+  "material_sample_count": 18,
+  "process_sample_count": 17,
+  "high_risk_sample_count": 11
+}
+```
+
+与关键词检索 baseline 相比，本地 FAISS 哈希检索在材料命中率和流程步骤命中率上有所提升，但政策依据关键词命中率下降。论文中可将这一现象作为误差分析：哈希向量提高了近似匹配能力，但仍缺少真正的中文语义表示，后续需要接入中文 embedding 模型进行对照实验。
 
 ## 6.5 后续实验扩展
 
-后续应安装 RAG 依赖并构建 FAISS 索引，比较 fallback 与 RAG 的政策依据命中率差异；接入 Qwen 等开源模型后，比较模板回答与 LLM 生成回答在完整性、可读性和幻觉率上的差异。
+后续应接入中文 embedding 模型并重建 FAISS 索引，比较关键词检索、本地哈希 FAISS 和语义 FAISS 的政策依据命中率差异；接入 Qwen 等开源模型后，比较模板回答与 LLM 生成回答在完整性、可读性和幻觉率上的差异。
