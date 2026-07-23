@@ -79,6 +79,10 @@ venv\Scripts\python.exe -m metagpt.ext.government_service.eval.run_retrieval_com
 venv\Scripts\python.exe -m metagpt.ext.government_service.local_web_demo --host 127.0.0.1 --port 8765
 ```
 
+## 追加更新：Trace ID 追溯查询
+
+系统新增 `TraceRecordStore`，支持从 `workspace/government_service/traces/trace_records.jsonl` 中按 `trace_id` 查询单条追溯记录，并读取最近追溯记录。标准库 Web Demo 新增 `/api/trace/{trace_id}` 和 `/api/traces` 接口，页面可展示执行动作序列、检索文档、风险判断、知识库后端和历史问题。该功能用于强化论文主题中的“可追溯”部分，也方便答辩时展示一次政务服务回答的完整链路。
+
 ## 主要改动
 
 ### 1. 政务服务知识库扩充

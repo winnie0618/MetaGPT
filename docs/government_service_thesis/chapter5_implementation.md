@@ -6,7 +6,7 @@
 
 ## 5.2 核心模块
 
-`schema.py` 定义 `ServiceIntent`、`PolicyEvidence`、`MaterialItem`、`ProcessStep`、`RiskAssessment`、`TraceRecord` 和 `ServiceResponse` 等数据结构。`knowledge_base.py` 提供关键词检索、本地 FAISS 检索和 TF-IDF 统计向量检索，其中 FAISS 索引持久化到 `workspace/government_service/rag`。`trace_record.py` 将执行过程写入 `workspace/government_service/traces`。
+`schema.py` 定义 `ServiceIntent`、`PolicyEvidence`、`MaterialItem`、`ProcessStep`、`RiskAssessment`、`TraceRecord` 和 `ServiceResponse` 等数据结构。`knowledge_base.py` 提供关键词检索、本地 FAISS 检索和 TF-IDF 统计向量检索，其中 FAISS 索引持久化到 `workspace/government_service/rag`。`trace_record.py` 将执行过程写入 `workspace/government_service/traces`，并通过 `TraceRecordStore` 支持按 `trace_id` 查询和最近记录读取。
 
 ## 5.3 核心 Action
 
@@ -43,4 +43,4 @@ venv\Scripts\streamlit.exe run metagpt/ext/government_service/web_demo.py
 venv\Scripts\python.exe -m metagpt.ext.government_service.local_web_demo --host 127.0.0.1 --port 8765
 ```
 
-打开 `http://127.0.0.1:8765` 后，可在页面中切换 `FAISS`、`Keyword` 和 `TF-IDF` 三种检索后端，并查看最终回答、政策依据、材料清单、办理步骤、风险等级和 `trace_id`。
+打开 `http://127.0.0.1:8765` 后，可在页面中切换 `FAISS`、`Keyword` 和 `TF-IDF` 三种检索后端，并查看最终回答、政策依据、材料清单、办理步骤、风险等级和 `trace_id`。页面还支持按 `trace_id` 查询追溯链路，展示执行动作序列、检索文档、风险判断和知识库状态。

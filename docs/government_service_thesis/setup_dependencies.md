@@ -78,6 +78,8 @@ venv\Scripts\python.exe -m metagpt.ext.government_service.local_web_demo --host 
 http://127.0.0.1:8765
 ```
 
+页面提供 `/api/query`、`/api/trace/{trace_id}` 和 `/api/traces` 三类接口，可用于演示问答生成、单条追溯链路查询和最近追溯记录查看。
+
 若要运行 Streamlit Web Demo，需要安装：
 
 ```powershell

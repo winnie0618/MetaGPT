@@ -6,6 +6,8 @@ from metagpt.ext.government_service.local_web_demo import BACKENDS, INDEX_HTML, 
 def test_local_web_demo_exposes_retrieval_backends():
     assert {"keyword", "rag", "tfidf"}.issubset(BACKENDS)
     assert "/api/query" in INDEX_HTML
+    assert "/api/trace/" in INDEX_HTML
+    assert "traceQuery" in INDEX_HTML
 
 
 def test_local_web_demo_rejects_unknown_backend():

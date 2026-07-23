@@ -6,8 +6,9 @@ import json
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, unquote, urlparse
 
+from metagpt.ext.government_service.actions.trace_record import TraceRecordStore
 from metagpt.ext.government_service.workflow import GovServiceWorkflow
 
 
@@ -29,16 +30,41 @@ def build_payload(query: str, backend: str = "rag") -> dict[str, Any]:
     }
 
 
+def build_trace_payload(trace_id: str) -> dict[str, Any]:
+    record = TraceRecordStore().find_by_trace_id(trace_id)
+    if record is None:
+        raise ValueError(f"Trace not found: {trace_id}")
+    return {"trace_id": trace_id, "record": record}
+
+
+def build_recent_traces_payload(limit: int = 20) -> dict[str, Any]:
+    records = TraceRecordStore().list_recent(limit=limit)
+    return {"count": len(records), "records": records}
+
+
 class GovTraceDemoHandler(BaseHTTPRequestHandler):
     server_version = "GovTraceDemo/1.0"
 
     def do_GET(self) -> None:
-        path = urlparse(self.path).path
+        parsed = urlparse(self.path)
+        path = parsed.path
         if path in {"/", "/index.html"}:
             self._send_html(INDEX_HTML)
             return
         if path == "/api/health":
             self._send_json({"ok": True, "backends": sorted(BACKENDS)})
+            return
+        if path == "/api/traces":
+            params = parse_qs(parsed.query)
+            limit = int((params.get("limit") or ["20"])[0])
+            self._send_json(build_recent_traces_payload(limit=limit))
+            return
+        if path.startswith("/api/trace/"):
+            trace_id = unquote(path.removeprefix("/api/trace/"))
+            try:
+                self._send_json(build_trace_payload(trace_id))
+            except ValueError as exc:
+                self._send_json({"error": str(exc)}, status=HTTPStatus.NOT_FOUND)
             return
         self.send_error(HTTPStatus.NOT_FOUND, "Not Found")
 
@@ -262,6 +288,42 @@ INDEX_HTML = """
       cursor: pointer;
       font: inherit;
     }
+    .trace-lookup {
+      border-top: 1px solid var(--line);
+      margin-top: 16px;
+      padding-top: 14px;
+      display: grid;
+      gap: 8px;
+    }
+    input {
+      width: 100%;
+      height: 38px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 0 10px;
+      color: var(--ink);
+      outline: none;
+      font: inherit;
+      background: #fbfcfd;
+    }
+    input:focus {
+      border-color: var(--brand);
+      box-shadow: 0 0 0 3px rgba(20, 108, 95, 0.12);
+    }
+    .button-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    .secondary {
+      height: 38px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #ffffff;
+      color: var(--ink);
+      cursor: pointer;
+      font: inherit;
+    }
     .workspace {
       display: grid;
       grid-template-rows: auto auto 1fr;
@@ -389,6 +451,14 @@ INDEX_HTML = """
           <button type="button" data-query="我能不能确定拿到创业补贴，金额是多少？">高风险结果判断</button>
           <button type="button" data-query="申请创业补贴被要求补正材料时该怎么办？">材料补正咨询</button>
         </div>
+        <div class="trace-lookup">
+          <label for="traceQuery">Trace ID 查询</label>
+          <input id="traceQuery" placeholder="运行后自动填入，也可粘贴历史 trace_id" />
+          <div class="button-row">
+            <button class="secondary" id="traceSearchBtn" type="button">查询链路</button>
+            <button class="secondary" id="recentTraceBtn" type="button">最近记录</button>
+          </div>
+        </div>
       </section>
       <section class="workspace">
         <section class="panel answer">
@@ -430,6 +500,10 @@ INDEX_HTML = """
             <h2>追溯状态</h2>
             <div id="traceStatus" class="list empty">等待运行</div>
           </div>
+          <div class="panel section">
+            <h2>追溯链路</h2>
+            <div id="traceRecord" class="list empty">等待查询</div>
+          </div>
         </section>
       </section>
     </main>
@@ -439,6 +513,7 @@ INDEX_HTML = """
     const $ = (id) => document.getElementById(id);
     const queryInput = $("query");
     const submitBtn = $("submitBtn");
+    const traceQuery = $("traceQuery");
 
     document.querySelectorAll("#backendGroup button").forEach((button) => {
       button.addEventListener("click", () => {
@@ -455,6 +530,8 @@ INDEX_HTML = """
     });
 
     submitBtn.addEventListener("click", runQuery);
+    $("traceSearchBtn").addEventListener("click", queryTrace);
+    $("recentTraceBtn").addEventListener("click", loadRecentTraces);
 
     async function runQuery() {
       const query = queryInput.value.trim();
@@ -487,6 +564,7 @@ INDEX_HTML = """
       $("reviewFlag").textContent = risk.human_review_required ? "需要" : "不需要";
       $("backendValue").textContent = status.backend || payload.backend || "-";
       $("traceId").textContent = response.trace_id || "-";
+      traceQuery.value = response.trace_id || "";
       $("evidenceList").className = "list";
       $("materialList").className = "list";
       $("stepList").className = "list";
@@ -495,7 +573,45 @@ INDEX_HTML = """
       $("materialList").innerHTML = renderMaterials(response.materials || []);
       $("stepList").innerHTML = renderSteps(response.process_steps || []);
       $("traceStatus").innerHTML = renderStatus(status, risk);
+      $("traceRecord").className = "list";
+      $("traceRecord").innerHTML = emptyText("已生成 trace_id，可点击查询链路");
       $("serverStatus").textContent = "最近运行：" + new Date().toLocaleTimeString();
+    }
+
+    async function queryTrace() {
+      const traceId = traceQuery.value.trim();
+      if (!traceId) return;
+      setLoading(true);
+      try {
+        const response = await fetch("/api/trace/" + encodeURIComponent(traceId));
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload.error || "查询失败");
+        $("traceRecord").className = "list";
+        $("traceRecord").innerHTML = renderTraceRecord(payload.record);
+        $("serverStatus").textContent = "追溯查询：" + traceId;
+      } catch (error) {
+        $("traceRecord").className = "list";
+        $("traceRecord").innerHTML = emptyText(error.message);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    async function loadRecentTraces() {
+      setLoading(true);
+      try {
+        const response = await fetch("/api/traces?limit=10");
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload.error || "查询失败");
+        $("traceRecord").className = "list";
+        $("traceRecord").innerHTML = renderRecentTraces(payload.records || []);
+        $("serverStatus").textContent = "最近记录：" + (payload.count || 0);
+      } catch (error) {
+        $("traceRecord").className = "list";
+        $("traceRecord").innerHTML = emptyText(error.message);
+      } finally {
+        setLoading(false);
+      }
     }
 
     function renderEvidence(items) {
@@ -543,6 +659,43 @@ INDEX_HTML = """
           <div class="item-body">${escapeHtml(status.last_error || "无")}</div>
         </div>
       `;
+    }
+
+    function renderTraceRecord(record) {
+      if (!record) return emptyText("未找到追溯记录");
+      const metadata = record.metadata || {};
+      return `
+        <div class="item">
+          <div class="item-title">${escapeHtml(record.trace_id || "")}</div>
+          <div class="item-body">${escapeHtml(record.timestamp || "")}</div>
+        </div>
+        <div class="item">
+          <div class="item-title">Query / Intent</div>
+          <div class="item-body">${escapeHtml(record.query || "")}\nintent=${escapeHtml(record.intent || "")}</div>
+        </div>
+        <div class="item">
+          <div class="item-title">Actions</div>
+          <div class="item-body">${escapeHtml((record.actions || []).join(" -> "))}</div>
+        </div>
+        <div class="item">
+          <div class="item-title">Retrieved Docs</div>
+          <div class="item-body">${escapeHtml((record.retrieved_docs || []).join("\\n"))}</div>
+        </div>
+        <div class="item">
+          <div class="item-title">Risk / Backend</div>
+          <div class="item-body">risk=${escapeHtml(record.risk_level || "")}; review=${Boolean(record.human_review_required)}; backend=${escapeHtml(metadata.backend || "")}</div>
+        </div>
+      `;
+    }
+
+    function renderRecentTraces(records) {
+      if (!records.length) return emptyText("暂无追溯记录");
+      return records.map((record) => `
+        <div class="item">
+          <div class="item-title">${escapeHtml(record.trace_id || "")}</div>
+          <div class="item-body">${escapeHtml(record.timestamp || "")}\n${escapeHtml(record.query || "")}</div>
+        </div>
+      `).join("");
     }
 
     function emptyText(text) {
