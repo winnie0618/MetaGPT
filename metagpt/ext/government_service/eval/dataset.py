@@ -7,8 +7,13 @@ from pydantic import BaseModel, Field
 
 
 class EvalSample(BaseModel):
+    id: str
     query: str
+    intent: str = ""
     expected_answer_contains: list[str] = Field(default_factory=list)
+    expected_risk_level: str = ""
+    expected_human_review_required: bool = False
+    expected_evidence_keywords: list[str] = Field(default_factory=list)
 
 
 def load_samples(path: str | Path) -> list[EvalSample]:

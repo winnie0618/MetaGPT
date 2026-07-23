@@ -10,14 +10,16 @@ from metagpt.provider.constant import GENERAL_FUNCTION_SCHEMA
 from metagpt.provider.openai_api import OpenAILLM
 from metagpt.schema import Message
 
-OriginalLLM = OpenAILLM if config.llm.api_type == LLMType.OPENAI else AzureOpenAILLM
+OriginalLLM = OpenAILLM if getattr(getattr(config, "llm", None), "api_type", None) != LLMType.AZURE else AzureOpenAILLM
 
 
 class MockLLM(OriginalLLM):
     def __init__(self, allow_open_api_call):
-        original_llm_config = (
-            config.get_openai_llm() if config.llm.api_type == LLMType.OPENAI else config.get_azure_llm()
-        )
+        llm_config = getattr(config, "llm", None)
+        if llm_config is None:
+            original_llm_config = None
+        else:
+            original_llm_config = config.get_openai_llm() if llm_config.api_type == LLMType.OPENAI else config.get_azure_llm()
         super().__init__(original_llm_config)
         self.allow_open_api_call = allow_open_api_call
         self.rsp_cache: dict = {}

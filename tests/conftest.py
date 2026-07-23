@@ -18,6 +18,7 @@ import aiohttp.web
 import pytest
 
 from metagpt.const import DEFAULT_WORKSPACE_ROOT, TEST_DATA_PATH
+from metagpt.config2 import config
 from metagpt.context import Context as MetagptContext
 from metagpt.llm import LLM
 from metagpt.logs import logger
@@ -60,6 +61,9 @@ def pytest_runtest_makereport(item, call):
 
 @pytest.fixture(scope="function", autouse=True)
 def llm_mock(rsp_cache, mocker, request):
+    if getattr(config, "llm", None) is None:
+        yield mocker
+        return
     llm = MockLLM(allow_open_api_call=ALLOW_OPENAI_API_CALL)
     llm.rsp_cache = rsp_cache
     mocker.patch("metagpt.provider.base_llm.BaseLLM.aask", llm.aask)

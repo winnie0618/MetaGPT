@@ -1,4 +1,5 @@
 from .human_review import HumanReviewAction
+from .answer_generate import AnswerGenerateAction
 from .intent_recognize import IntentRecognizeAction
 from .material_checklist import MaterialChecklistAction
 from .policy_retrieve import PolicyRetrieveAction
@@ -13,5 +14,6 @@ __all__ = [
     "MaterialChecklistAction",
     "RiskAssessAction",
     "HumanReviewAction",
+    "AnswerGenerateAction",
     "TraceRecordAction",
 ]
