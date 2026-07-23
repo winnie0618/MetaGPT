@@ -10,6 +10,7 @@
 venv\Scripts\python.exe -m pytest tests\metagpt\ext\government_service -q
 venv\Scripts\python.exe -m metagpt.ext.government_service.eval.run_eval --dataset data\government_service\test_questions.jsonl --output workspace\government_service\eval_results.json
 venv\Scripts\python.exe -m metagpt.ext.government_service.eval.run_retrieval_compare --dataset data\government_service\test_questions.jsonl --output workspace\government_service\retrieval_compare.json
+venv\Scripts\python.exe -m metagpt.ext.government_service.local_web_demo --host 127.0.0.1 --port 8765
 ```
 
 ## 本地 FAISS 检索依赖
@@ -64,6 +65,18 @@ venv\Scripts\python.exe -m pip install llama-index-core llama-index-vector-store
 论文实验中建议将“关键词检索”“本地 FAISS 哈希检索”“TF-IDF 统计向量检索”“中文 embedding + FAISS 检索”作为检索对照组。
 
 ## Web 演示依赖
+
+标准库本地 Web Demo 不需要额外依赖，可直接运行：
+
+```powershell
+venv\Scripts\python.exe -m metagpt.ext.government_service.local_web_demo --host 127.0.0.1 --port 8765
+```
+
+访问地址：
+
+```text
+http://127.0.0.1:8765
+```
 
 若要运行 Streamlit Web Demo，需要安装：
 

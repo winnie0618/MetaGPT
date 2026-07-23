@@ -25,7 +25,7 @@
 
 ## News
 
-🚀 Jul. 23, 2026: Added GovTrace-Agent thesis prototype updates for traceable multi-agent government service workflows, including keyword, local FAISS, and TF-IDF retrieval comparison. See [change summary](docs/government_service_thesis/CHANGELOG.md).
+🚀 Jul. 23, 2026: Added GovTrace-Agent thesis prototype updates for traceable multi-agent government service workflows, including keyword, local FAISS, TF-IDF retrieval comparison, and a dependency-free local web demo. See [change summary](docs/government_service_thesis/CHANGELOG.md).
 
 🚀 Mar. 10, 2025: 🎉 [mgx.dev](https://mgx.dev/) is the #1 Product of the Week on @ProductHunt! 🏆
 

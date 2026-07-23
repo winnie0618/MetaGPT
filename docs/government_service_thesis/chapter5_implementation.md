@@ -36,3 +36,11 @@ Web 演示在安装 Streamlit 后运行：
 ```powershell
 venv\Scripts\streamlit.exe run metagpt/ext/government_service/web_demo.py
 ```
+
+为了保证答辩展示不受可选依赖影响，系统还提供基于 Python 标准库的本地 Web 演示：
+
+```powershell
+venv\Scripts\python.exe -m metagpt.ext.government_service.local_web_demo --host 127.0.0.1 --port 8765
+```
+
+打开 `http://127.0.0.1:8765` 后，可在页面中切换 `FAISS`、`Keyword` 和 `TF-IDF` 三种检索后端，并查看最终回答、政策依据、材料清单、办理步骤、风险等级和 `trace_id`。

@@ -69,6 +69,16 @@ venv\Scripts\python.exe -m metagpt.ext.government_service.eval.run_retrieval_com
 
 该结果为论文提供了更完整的检索消融实验基础：关键词检索在证据覆盖上更稳定，本地 FAISS 哈希检索对流程步骤更友好，TF-IDF 在回答关键词和材料抽取上表现较好，但流程步骤召回偏弱。
 
+## 追加更新：零依赖本地 Web 演示
+
+系统新增 `local_web_demo.py`，基于 Python 标准库 `http.server` 提供本地演示页面和 `/api/query` 接口，不需要安装 Streamlit、Flask 或 FastAPI。页面支持输入政务服务问题、切换 `FAISS`、`Keyword` 和 `TF-IDF` 三种检索后端，并展示最终回答、政策依据、材料清单、办理步骤、风险等级、知识库状态和 `trace_id`。
+
+运行命令：
+
+```powershell
+venv\Scripts\python.exe -m metagpt.ext.government_service.local_web_demo --host 127.0.0.1 --port 8765
+```
+
 ## 主要改动
 
 ### 1. 政务服务知识库扩充
