@@ -10,7 +10,7 @@ from metagpt.ext.government_service.actions.trace_record import TraceRecordActio
 from metagpt.ext.government_service.roles.policy_expert import PolicyExpert
 from metagpt.ext.government_service.roles.process_planner import ProcessPlanner
 from metagpt.ext.government_service.roles.risk_auditor import RiskAuditor
-from metagpt.ext.government_service.schema import ServiceResponse, TraceRecord
+from metagpt.ext.government_service.schema import RiskAssessment, ServiceResponse, TraceRecord
 
 
 class ServiceCoordinator:
@@ -21,7 +21,13 @@ class ServiceCoordinator:
         raw_docs_dir: str | None = None,
         trace_dir: str | None = None,
         knowledge_backend: str = "rag",
+        enable_process_planner: bool = True,
+        enable_risk_auditor: bool = True,
+        enable_trace_record: bool = True,
     ):
+        self.enable_process_planner = enable_process_planner
+        self.enable_risk_auditor = enable_risk_auditor
+        self.enable_trace_record = enable_trace_record
         self.intent_action = IntentRecognizeAction()
         self.policy_expert = PolicyExpert(raw_docs_dir=raw_docs_dir, knowledge_backend=knowledge_backend)
         self.process_planner = ProcessPlanner()
@@ -37,12 +43,19 @@ class ServiceCoordinator:
 
         process_steps = []
         materials = []
-        if intent.intent in {"process_plan", "mixed", "qualification_check"}:
+        if self.enable_process_planner and intent.intent in {"process_plan", "mixed", "qualification_check"}:
             process_steps = await self.process_planner.build_steps(query, evidences)
-        if intent.intent in {"material_checklist", "mixed", "qualification_check"}:
+        if self.enable_process_planner and intent.intent in {"material_checklist", "mixed", "qualification_check"}:
             materials = await self.process_planner.build_materials(query, evidences)
 
-        risk_assessment = await self.risk_auditor.assess(query, intent.intent)
+        if self.enable_risk_auditor:
+            risk_assessment = await self.risk_auditor.assess(query, intent.intent)
+        else:
+            risk_assessment = RiskAssessment(
+                risk_level="low",
+                human_review_required=False,
+                reason="风险审核模块已在消融实验中关闭。",
+            )
         human_review_message = await self.human_review_action.run() if risk_assessment.human_review_required else ""
 
         direct_answer = await self.answer_action.run(
@@ -68,7 +81,7 @@ class ServiceCoordinator:
                 self.policy_expert.action.name,
                 self.process_planner.task_plan_action.name if process_steps else "",
                 self.process_planner.material_action.name if materials else "",
-                self.risk_auditor.action.name,
+                self.risk_auditor.action.name if self.enable_risk_auditor else "",
                 self.answer_action.name,
                 self.human_review_action.name if human_review_message else "",
             ],
@@ -80,10 +93,14 @@ class ServiceCoordinator:
                 "backend": kb_status.get("backend", "fallback"),
                 "intent_confidence": intent.confidence,
                 "knowledge_base_status": kb_status,
+                "enable_process_planner": self.enable_process_planner,
+                "enable_risk_auditor": self.enable_risk_auditor,
+                "enable_trace_record": self.enable_trace_record,
             },
         )
         trace_record.actions = [a for a in trace_record.actions if a]
-        await self.trace_action.run(trace_record)
+        if self.enable_trace_record:
+            await self.trace_action.run(trace_record)
 
         return ServiceResponse(
             direct_answer=direct_answer,

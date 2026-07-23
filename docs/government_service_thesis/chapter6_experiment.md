@@ -24,6 +24,14 @@ venv\Scripts\python.exe -m metagpt.ext.government_service.eval.run_retrieval_com
 
 该脚本会同时输出 JSON 结果和可直接粘贴到论文中的 Markdown 表格。
 
+多智能体协同消融实验命令如下：
+
+```powershell
+venv\Scripts\python.exe -m metagpt.ext.government_service.eval.run_ablation --dataset data\government_service\test_questions.jsonl --knowledge-backend rag --output workspace\government_service\ablation_rag.json
+```
+
+该实验比较完整系统、关闭流程规划智能体、关闭风险审核智能体和关闭追溯记录模块后的指标变化。
+
 ## 6.3 评价指标
 
 系统当前实现了回答关键词命中率、政策依据命中率、风险等级准确率、人工复核触发准确率、材料命中率和流程步骤命中率。其中材料命中率只在 `expected_materials` 非空样本上计算，流程步骤命中率只在 `expected_process_steps` 非空样本上计算，避免无关样本稀释指标。
@@ -58,6 +66,17 @@ venv\Scripts\python.exe -m metagpt.ext.government_service.eval.run_retrieval_com
 | tfidf | {"tfidf": 50} | 0.9300 | 0.8300 | 1.0000 | 1.0000 | 0.6389 | 0.3431 |
 
 与关键词检索 baseline 相比，本地 FAISS 哈希检索在材料命中率和流程步骤命中率上有所提升，但政策依据关键词命中率下降。TF-IDF 统计向量检索在回答关键词命中率和材料命中率上表现较好，但流程步骤命中率偏低。论文中可将这一现象作为误差分析：不同检索方法对下游材料抽取、流程规划和证据覆盖的影响并不一致，后续需要接入中文 embedding 模型进行真正的语义检索对照实验。
+
+多智能体协同消融实验结果如下：
+
+| variant | answer_keyword_hit_rate | evidence_keyword_hit_rate | risk_accuracy | human_review_accuracy | material_hit_rate | process_step_hit_rate | trace_recorded_rate |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| full | 0.8933 | 0.7600 | 1.0000 | 1.0000 | 0.6389 | 0.5098 | 1.0000 |
+| no_process_planner | 0.6800 | 0.7600 | 1.0000 | 1.0000 | 0.0000 | 0.0000 | 1.0000 |
+| no_risk_auditor | 0.8033 | 0.7600 | 0.5200 | 0.7800 | 0.6389 | 0.5098 | 1.0000 |
+| no_trace_record | 0.8933 | 0.7600 | 1.0000 | 1.0000 | 0.6389 | 0.5098 | 0.0000 |
+
+结果表明，流程规划智能体直接决定材料清单和办理步骤生成能力；风险审核智能体显著影响风险等级识别和人工复核触发准确率；追溯记录模块不改变回答文本质量，但决定系统能否形成可复查的执行链路。因此，本文的多智能体协同设计对服务完整性、安全性和可追溯性均具有明确贡献。
 
 ## 6.5 后续实验扩展
 

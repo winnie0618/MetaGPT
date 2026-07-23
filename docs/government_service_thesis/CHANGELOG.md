@@ -83,6 +83,19 @@ venv\Scripts\python.exe -m metagpt.ext.government_service.local_web_demo --host 
 
 系统新增 `TraceRecordStore`，支持从 `workspace/government_service/traces/trace_records.jsonl` 中按 `trace_id` 查询单条追溯记录，并读取最近追溯记录。标准库 Web Demo 新增 `/api/trace/{trace_id}` 和 `/api/traces` 接口，页面可展示执行动作序列、检索文档、风险判断、知识库后端和历史问题。该功能用于强化论文主题中的“可追溯”部分，也方便答辩时展示一次政务服务回答的完整链路。
 
+## 追加更新：多智能体协同消融实验
+
+系统新增多智能体模块开关，`GovServiceWorkflow` 可分别关闭流程规划、风险审核和追溯记录模块。`run_eval.py` 支持 `--disable-process-planner`、`--disable-risk-auditor` 和 `--disable-trace-record` 参数；新增 `run_ablation.py` 一次性运行完整系统和三种消融变体。
+
+最新 RAG 后端消融结果如下：
+
+| variant | answer_keyword_hit_rate | evidence_keyword_hit_rate | risk_accuracy | human_review_accuracy | material_hit_rate | process_step_hit_rate | trace_recorded_rate |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| full | 0.8933 | 0.7600 | 1.0000 | 1.0000 | 0.6389 | 0.5098 | 1.0000 |
+| no_process_planner | 0.6800 | 0.7600 | 1.0000 | 1.0000 | 0.0000 | 0.0000 | 1.0000 |
+| no_risk_auditor | 0.8033 | 0.7600 | 0.5200 | 0.7800 | 0.6389 | 0.5098 | 1.0000 |
+| no_trace_record | 0.8933 | 0.7600 | 1.0000 | 1.0000 | 0.6389 | 0.5098 | 0.0000 |
+
 ## 主要改动
 
 ### 1. 政务服务知识库扩充

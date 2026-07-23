@@ -10,6 +10,7 @@
 venv\Scripts\python.exe -m pytest tests\metagpt\ext\government_service -q
 venv\Scripts\python.exe -m metagpt.ext.government_service.eval.run_eval --dataset data\government_service\test_questions.jsonl --output workspace\government_service\eval_results.json
 venv\Scripts\python.exe -m metagpt.ext.government_service.eval.run_retrieval_compare --dataset data\government_service\test_questions.jsonl --output workspace\government_service\retrieval_compare.json
+venv\Scripts\python.exe -m metagpt.ext.government_service.eval.run_ablation --dataset data\government_service\test_questions.jsonl --knowledge-backend rag --output workspace\government_service\ablation_rag.json
 venv\Scripts\python.exe -m metagpt.ext.government_service.local_web_demo --host 127.0.0.1 --port 8765
 ```
 

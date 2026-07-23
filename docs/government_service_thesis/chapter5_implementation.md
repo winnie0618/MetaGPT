@@ -16,6 +16,8 @@
 
 `PolicyExpert` 封装政策检索，`ProcessPlanner` 封装材料和流程生成，`RiskAuditor` 封装风险审核，`ServiceCoordinator` 负责整体调度和追溯记录。该结构体现了 MetaGPT 框架下的角色分工和动作编排。
 
+为支持实验分析，`GovServiceWorkflow` 提供 `enable_process_planner`、`enable_risk_auditor` 和 `enable_trace_record` 配置项。正常系统运行时三者均开启；消融实验中可分别关闭某一模块，观察材料命中率、流程步骤命中率、风险准确率和追溯落盘率的变化。
+
 ## 5.5 运行方式
 
 命令行演示：
