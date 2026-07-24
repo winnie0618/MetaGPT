@@ -10,13 +10,13 @@
 
 ## 5.3 核心 Action
 
-系统包含 `IntentRecognizeAction`、`PolicyRetrieveAction`、`MaterialChecklistAction`、`TaskPlanAction`、`RiskAssessAction`、`HumanReviewAction`、`AnswerGenerateAction` 和 `TraceRecordAction`。其中回答生成支持模板模式和 LLM 模式，当前默认使用模板模式保证离线可运行。
+系统包含 `IntentRecognizeAction`、`PolicyRetrieveAction`、`MaterialChecklistAction`、`TaskPlanAction`、`RiskAssessAction`、`HumanReviewAction`、`AnswerGenerateAction` 和 `TraceRecordAction`。其中回答生成支持 `template`、`llm` 和 `rag_llm` 三种模式：`template` 使用离线结构化模板，`llm` 将结构化上下文交给模型生成，`rag_llm` 在检索证据、材料、流程和风险审核结果基础上生成回答。默认使用模板模式保证离线可运行；接入本地 Qwen、DeepSeek 或 Ollama OpenAI-compatible 服务后，可切换到模型生成模式。
 
 ## 5.4 核心 Role
 
 `PolicyExpert` 封装政策检索，`ProcessPlanner` 封装材料和流程生成，`RiskAuditor` 封装风险审核，`ServiceCoordinator` 负责整体调度和追溯记录。该结构体现了 MetaGPT 框架下的角色分工和动作编排。
 
-为支持实验分析，`GovServiceWorkflow` 提供 `enable_process_planner`、`enable_risk_auditor` 和 `enable_trace_record` 配置项。正常系统运行时三者均开启；消融实验中可分别关闭某一模块，观察材料命中率、流程步骤命中率、风险准确率和追溯落盘率的变化。
+为支持实验分析，`GovServiceWorkflow` 提供 `answer_mode`、`enable_process_planner`、`enable_risk_auditor` 和 `enable_trace_record` 配置项。正常系统运行时三个智能体模块均开启；消融实验中可分别关闭某一模块，观察材料命中率、流程步骤命中率、风险准确率和追溯落盘率的变化。`answer_mode` 会写入追溯元数据，用于区分模板回答、模型直接回答和检索增强模型回答。
 
 ## 5.5 运行方式
 
@@ -24,6 +24,12 @@
 
 ```powershell
 venv\Scripts\python.exe -m metagpt.ext.government_service.demo_cli
+```
+
+模型生成模式演示：
+
+```powershell
+venv\Scripts\python.exe -m metagpt.ext.government_service.demo_cli --knowledge-backend rag --answer-mode rag_llm
 ```
 
 评测脚本：
@@ -45,4 +51,4 @@ venv\Scripts\streamlit.exe run metagpt/ext/government_service/web_demo.py
 venv\Scripts\python.exe -m metagpt.ext.government_service.local_web_demo --host 127.0.0.1 --port 8765
 ```
 
-打开 `http://127.0.0.1:8765` 后，可在页面中切换 `FAISS`、`Keyword` 和 `TF-IDF` 三种检索后端，并查看最终回答、政策依据、材料清单、办理步骤、风险等级和 `trace_id`。页面还支持按 `trace_id` 查询追溯链路，展示执行动作序列、检索文档、风险判断和知识库状态。
+打开 `http://127.0.0.1:8765` 后，可在页面中切换 `FAISS`、`Keyword` 和 `TF-IDF` 三种检索后端，以及 `Template`、`RAG+LLM` 和 `LLM` 三种回答模式，并查看最终回答、政策依据、材料清单、办理步骤、风险等级和 `trace_id`。页面还支持按 `trace_id` 查询追溯链路，展示执行动作序列、检索文档、风险判断、知识库状态和回答模式。

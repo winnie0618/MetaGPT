@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+from metagpt.ext.government_service.config import ANSWER_MODES, DEFAULT_ANSWER_MODE
 from metagpt.ext.government_service.eval.run_eval import evaluate
 
 
@@ -19,15 +20,16 @@ METRIC_COLUMNS = [
 ]
 
 
-async def compare(dataset_path: str, backends: list[str]) -> dict[str, Any]:
+async def compare(dataset_path: str, backends: list[str], answer_mode: str = DEFAULT_ANSWER_MODE) -> dict[str, Any]:
     results: list[dict[str, Any]] = []
     for backend in backends:
-        result = await evaluate(dataset_path=dataset_path, knowledge_backend=backend)
+        result = await evaluate(dataset_path=dataset_path, knowledge_backend=backend, answer_mode=answer_mode)
         if result:
             results.append(result)
     return {
         "dataset": dataset_path,
         "backends": backends,
+        "answer_mode": answer_mode,
         "results": results,
         "markdown_table": to_markdown_table(results),
     }
@@ -59,8 +61,15 @@ def main() -> None:
         default=["keyword", "rag", "tfidf"],
         help="需要对比的知识库后端",
     )
+    parser.add_argument(
+        "--answer-mode",
+        type=str,
+        choices=sorted(ANSWER_MODES),
+        default=DEFAULT_ANSWER_MODE,
+        help="回答生成模式：template 离线模板，llm 模型直接生成，rag_llm 基于检索证据生成",
+    )
     args = parser.parse_args()
-    result = asyncio.run(compare(dataset_path=args.dataset, backends=args.backends))
+    result = asyncio.run(compare(dataset_path=args.dataset, backends=args.backends, answer_mode=args.answer_mode))
     print(json.dumps(result, ensure_ascii=False, indent=2))
     if args.output:
         out_path = Path(args.output)

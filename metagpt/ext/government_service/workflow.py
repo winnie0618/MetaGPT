@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from metagpt.ext.government_service.config import DEFAULT_ANSWER_MODE
 from metagpt.ext.government_service.roles.service_coordinator import ServiceCoordinator
 from metagpt.ext.government_service.schema import ServiceResponse
 
@@ -12,6 +13,7 @@ class GovServiceWorkflow:
         raw_docs_dir: str | None = None,
         trace_dir: str | None = None,
         knowledge_backend: str = "rag",
+        answer_mode: str = DEFAULT_ANSWER_MODE,
         enable_process_planner: bool = True,
         enable_risk_auditor: bool = True,
         enable_trace_record: bool = True,
@@ -19,6 +21,7 @@ class GovServiceWorkflow:
         self.raw_docs_dir = raw_docs_dir
         self.trace_dir = trace_dir
         self.knowledge_backend = knowledge_backend
+        self.answer_mode = answer_mode
         self.enable_process_planner = enable_process_planner
         self.enable_risk_auditor = enable_risk_auditor
         self.enable_trace_record = enable_trace_record
@@ -26,6 +29,7 @@ class GovServiceWorkflow:
             raw_docs_dir=raw_docs_dir,
             trace_dir=trace_dir,
             knowledge_backend=knowledge_backend,
+            answer_mode=answer_mode,
             enable_process_planner=enable_process_planner,
             enable_risk_auditor=enable_risk_auditor,
             enable_trace_record=enable_trace_record,

@@ -7,6 +7,7 @@ from metagpt.ext.government_service.actions.answer_generate import AnswerGenerat
 from metagpt.ext.government_service.actions.human_review import HumanReviewAction
 from metagpt.ext.government_service.actions.intent_recognize import IntentRecognizeAction
 from metagpt.ext.government_service.actions.trace_record import TraceRecordAction
+from metagpt.ext.government_service.config import DEFAULT_ANSWER_MODE
 from metagpt.ext.government_service.roles.policy_expert import PolicyExpert
 from metagpt.ext.government_service.roles.process_planner import ProcessPlanner
 from metagpt.ext.government_service.roles.risk_auditor import RiskAuditor
@@ -21,6 +22,7 @@ class ServiceCoordinator:
         raw_docs_dir: str | None = None,
         trace_dir: str | None = None,
         knowledge_backend: str = "rag",
+        answer_mode: str = DEFAULT_ANSWER_MODE,
         enable_process_planner: bool = True,
         enable_risk_auditor: bool = True,
         enable_trace_record: bool = True,
@@ -28,11 +30,12 @@ class ServiceCoordinator:
         self.enable_process_planner = enable_process_planner
         self.enable_risk_auditor = enable_risk_auditor
         self.enable_trace_record = enable_trace_record
+        self.answer_mode = answer_mode
         self.intent_action = IntentRecognizeAction()
         self.policy_expert = PolicyExpert(raw_docs_dir=raw_docs_dir, knowledge_backend=knowledge_backend)
         self.process_planner = ProcessPlanner()
         self.risk_auditor = RiskAuditor()
-        self.answer_action = AnswerGenerateAction(use_llm=False)
+        self.answer_action = AnswerGenerateAction(answer_mode=answer_mode)
         self.human_review_action = HumanReviewAction()
         self.trace_action = TraceRecordAction(trace_dir=trace_dir)
 
@@ -91,6 +94,7 @@ class ServiceCoordinator:
             timestamp=datetime.now(),
             metadata={
                 "backend": kb_status.get("backend", "fallback"),
+                "answer_mode": self.answer_mode,
                 "intent_confidence": intent.confidence,
                 "knowledge_base_status": kb_status,
                 "enable_process_planner": self.enable_process_planner,

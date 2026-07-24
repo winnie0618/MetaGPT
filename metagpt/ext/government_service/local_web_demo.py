@@ -9,6 +9,7 @@ from typing import Any
 from urllib.parse import parse_qs, unquote, urlparse
 
 from metagpt.ext.government_service.actions.trace_record import TraceRecordStore
+from metagpt.ext.government_service.config import ANSWER_MODES, DEFAULT_ANSWER_MODE
 from metagpt.ext.government_service.workflow import GovServiceWorkflow
 
 
@@ -16,15 +17,18 @@ BACKENDS = {"keyword", "rag", "tfidf"}
 DEFAULT_QUERY = "高校毕业生创业补贴需要哪些材料，办理流程是什么？"
 
 
-def build_payload(query: str, backend: str = "rag") -> dict[str, Any]:
+def build_payload(query: str, backend: str = "rag", answer_mode: str = DEFAULT_ANSWER_MODE) -> dict[str, Any]:
     if backend not in BACKENDS:
         raise ValueError(f"Unsupported backend: {backend}")
-    workflow = GovServiceWorkflow(knowledge_backend=backend)
+    if answer_mode not in ANSWER_MODES:
+        raise ValueError(f"Unsupported answer_mode: {answer_mode}")
+    workflow = GovServiceWorkflow(knowledge_backend=backend, answer_mode=answer_mode)
     response = asyncio.run(workflow.run(query))
     kb_status = workflow.coordinator.policy_expert.last_status
     return {
         "query": query,
         "backend": backend,
+        "answer_mode": answer_mode,
         "knowledge_base_status": kb_status,
         "response": response.model_dump(mode="json"),
     }
@@ -52,7 +56,7 @@ class GovTraceDemoHandler(BaseHTTPRequestHandler):
             self._send_html(INDEX_HTML)
             return
         if path == "/api/health":
-            self._send_json({"ok": True, "backends": sorted(BACKENDS)})
+            self._send_json({"ok": True, "backends": sorted(BACKENDS), "answer_modes": sorted(ANSWER_MODES)})
             return
         if path == "/api/traces":
             params = parse_qs(parsed.query)
@@ -78,9 +82,10 @@ class GovTraceDemoHandler(BaseHTTPRequestHandler):
             payload = self._read_json()
             query = str(payload.get("query") or DEFAULT_QUERY).strip()
             backend = str(payload.get("backend") or "rag").strip()
+            answer_mode = str(payload.get("answer_mode") or DEFAULT_ANSWER_MODE).strip()
             if not query:
                 raise ValueError("query is required")
-            result = build_payload(query=query, backend=backend)
+            result = build_payload(query=query, backend=backend, answer_mode=answer_mode)
             self._send_json(result)
         except Exception as exc:
             self._send_json({"error": str(exc)}, status=HTTPStatus.BAD_REQUEST)
@@ -445,6 +450,12 @@ INDEX_HTML = """
           <button type="button" data-backend="keyword">Keyword</button>
           <button type="button" data-backend="tfidf">TF-IDF</button>
         </div>
+        <label>回答模式</label>
+        <div class="segmented" id="answerModeGroup">
+          <button type="button" data-answer-mode="template" class="active">Template</button>
+          <button type="button" data-answer-mode="rag_llm">RAG+LLM</button>
+          <button type="button" data-answer-mode="llm">LLM</button>
+        </div>
         <button class="primary" id="submitBtn" type="button">运行协同流程</button>
         <div class="examples">
           <button type="button" data-query="高校毕业生创业补贴需要哪些材料，办理流程是什么？">材料和流程咨询</button>
@@ -509,7 +520,7 @@ INDEX_HTML = """
     </main>
   </div>
   <script>
-    const state = { backend: "rag" };
+    const state = { backend: "rag", answerMode: "template" };
     const $ = (id) => document.getElementById(id);
     const queryInput = $("query");
     const submitBtn = $("submitBtn");
@@ -519,6 +530,14 @@ INDEX_HTML = """
       button.addEventListener("click", () => {
         state.backend = button.dataset.backend;
         document.querySelectorAll("#backendGroup button").forEach((item) => item.classList.remove("active"));
+        button.classList.add("active");
+      });
+    });
+
+    document.querySelectorAll("#answerModeGroup button").forEach((button) => {
+      button.addEventListener("click", () => {
+        state.answerMode = button.dataset.answerMode;
+        document.querySelectorAll("#answerModeGroup button").forEach((item) => item.classList.remove("active"));
         button.classList.add("active");
       });
     });
@@ -541,7 +560,7 @@ INDEX_HTML = """
         const response = await fetch("/api/query", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ query, backend: state.backend })
+          body: JSON.stringify({ query, backend: state.backend, answer_mode: state.answerMode })
         });
         const payload = await response.json();
         if (!response.ok) throw new Error(payload.error || "请求失败");
@@ -572,7 +591,7 @@ INDEX_HTML = """
       $("evidenceList").innerHTML = renderEvidence(response.policy_evidence || []);
       $("materialList").innerHTML = renderMaterials(response.materials || []);
       $("stepList").innerHTML = renderSteps(response.process_steps || []);
-      $("traceStatus").innerHTML = renderStatus(status, risk);
+      $("traceStatus").innerHTML = renderStatus(status, risk, payload.answer_mode || state.answerMode);
       $("traceRecord").className = "list";
       $("traceRecord").innerHTML = emptyText("已生成 trace_id，可点击查询链路");
       $("serverStatus").textContent = "最近运行：" + new Date().toLocaleTimeString();
@@ -644,11 +663,15 @@ INDEX_HTML = """
       `).join("");
     }
 
-    function renderStatus(status, risk) {
+    function renderStatus(status, risk, answerMode) {
       return `
         <div class="item">
           <div class="item-title">Knowledge Base</div>
           <div class="item-body">backend=${escapeHtml(status.backend || "")}; ready=${Boolean(status.ready)}</div>
+        </div>
+        <div class="item">
+          <div class="item-title">Answer Mode</div>
+          <div class="item-body">${escapeHtml(answerMode || "")}</div>
         </div>
         <div class="item">
           <div class="item-title">Risk Reason</div>
@@ -683,7 +706,7 @@ INDEX_HTML = """
         </div>
         <div class="item">
           <div class="item-title">Risk / Backend</div>
-          <div class="item-body">risk=${escapeHtml(record.risk_level || "")}; review=${Boolean(record.human_review_required)}; backend=${escapeHtml(metadata.backend || "")}</div>
+          <div class="item-body">risk=${escapeHtml(record.risk_level || "")}; review=${Boolean(record.human_review_required)}; backend=${escapeHtml(metadata.backend || "")}; answer_mode=${escapeHtml(metadata.answer_mode || "")}</div>
         </div>
       `;
     }

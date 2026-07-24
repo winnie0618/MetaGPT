@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from metagpt.const import DEFAULT_WORKSPACE_ROOT
+from metagpt.ext.government_service.config import ANSWER_MODES, DEFAULT_ANSWER_MODE
 from metagpt.ext.government_service.eval.run_eval import evaluate
 
 
@@ -44,13 +45,18 @@ METRIC_COLUMNS = [
 ]
 
 
-async def run_ablation(dataset_path: str, knowledge_backend: str = "rag") -> dict[str, Any]:
+async def run_ablation(
+    dataset_path: str,
+    knowledge_backend: str = "rag",
+    answer_mode: str = DEFAULT_ANSWER_MODE,
+) -> dict[str, Any]:
     results: list[dict[str, Any]] = []
     for variant, options in VARIANTS.items():
         trace_dir = DEFAULT_WORKSPACE_ROOT / "government_service" / "ablation_traces" / variant
         result = await evaluate(
             dataset_path=dataset_path,
             knowledge_backend=knowledge_backend,
+            answer_mode=answer_mode,
             trace_dir=str(trace_dir),
             **options,
         )
@@ -60,6 +66,7 @@ async def run_ablation(dataset_path: str, knowledge_backend: str = "rag") -> dic
     return {
         "dataset": dataset_path,
         "knowledge_backend": knowledge_backend,
+        "answer_mode": answer_mode,
         "variants": list(VARIANTS),
         "results": results,
         "markdown_table": to_markdown_table(results),
@@ -89,8 +96,17 @@ def main() -> None:
         default="rag",
         help="用于消融实验的检索后端",
     )
+    parser.add_argument(
+        "--answer-mode",
+        type=str,
+        choices=sorted(ANSWER_MODES),
+        default=DEFAULT_ANSWER_MODE,
+        help="回答生成模式：template 离线模板，llm 模型直接生成，rag_llm 基于检索证据生成",
+    )
     args = parser.parse_args()
-    result = asyncio.run(run_ablation(dataset_path=args.dataset, knowledge_backend=args.knowledge_backend))
+    result = asyncio.run(
+        run_ablation(dataset_path=args.dataset, knowledge_backend=args.knowledge_backend, answer_mode=args.answer_mode)
+    )
     print(json.dumps(result, ensure_ascii=False, indent=2))
     if args.output:
         out_path = Path(args.output)

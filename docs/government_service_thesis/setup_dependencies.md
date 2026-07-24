@@ -1,6 +1,6 @@
 # 政务服务智能体系统依赖说明
 
-本系统第一阶段规则版不依赖外部大模型即可运行，默认使用 `SimplePolicyKnowledgeBase` 进行关键词检索。当前阶段已经支持本地 FAISS 检索和 TF-IDF 统计向量检索；LLM 生成、中文语义 embedding 和 Web 演示属于后续可选增强。
+本系统默认不依赖外部大模型即可运行，回答生成使用 `template` 离线模板模式。当前阶段已经支持本地 FAISS 检索、TF-IDF 统计向量检索、标准库 Web 演示，以及面向本地开源模型服务的 OpenAI-compatible 回答生成入口；中文语义 embedding 属于后续可选增强。
 
 ## 基础运行
 
@@ -103,4 +103,27 @@ venv\Scripts\streamlit.exe run metagpt/ext/government_service/web_demo.py
 
 ## 大语言模型配置
 
-`AnswerGenerateAction` 默认使用模板模式 `use_llm=False`，不需要联网或配置模型。后续接入 Qwen、DeepSeek 或其他开源/接口模型时，可将 `use_llm=True`，并通过 MetaGPT 的 LLM 配置统一管理模型调用。高风险问题仍必须保留人工复核提示，不得让模型承诺审批结果、补贴金额或资格最终认定。
+`AnswerGenerateAction` 默认使用 `answer_mode=template`，不需要联网或配置模型。若本机已通过 Ollama、vLLM、LM Studio 或其他服务启动 Qwen、DeepSeek 等开源模型，并暴露 OpenAI-compatible `/chat/completions` 接口，可切换为 `rag_llm` 或 `llm`。
+
+常用环境变量如下：
+
+```powershell
+$env:GOVTRACE_ANSWER_MODE="rag_llm"
+$env:GOVTRACE_LLM_BASE_URL="http://127.0.0.1:11434/v1"
+$env:GOVTRACE_LLM_MODEL="qwen2.5:7b-instruct"
+$env:GOVTRACE_LLM_API_KEY="ollama"
+```
+
+命令行演示：
+
+```powershell
+venv\Scripts\python.exe -m metagpt.ext.government_service.demo_cli --knowledge-backend rag --answer-mode rag_llm
+```
+
+评测命令：
+
+```powershell
+venv\Scripts\python.exe -m metagpt.ext.government_service.eval.run_eval --dataset data\government_service\test_questions.jsonl --knowledge-backend rag --answer-mode rag_llm --output workspace\government_service\eval_rag_llm.json
+```
+
+如果本地模型服务不可用，系统会自动回退到模板回答，并在最终回答中写明模型调用失败原因。高风险问题仍必须保留人工复核提示，不得让模型承诺审批结果、补贴金额或资格最终认定。

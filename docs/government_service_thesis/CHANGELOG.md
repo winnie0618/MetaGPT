@@ -2,6 +2,21 @@
 
 本次提交围绕硕士毕业论文题目《面向政务服务流程的可追溯多智能体协同方法研究与实现》完善了 MetaGPT 政务服务扩展模块，使其从基础规则原型推进到可进行初步实验评测的版本。
 
+## 追加更新：可配置回答生成模式
+
+系统新增 `answer_mode` 配置，支持 `template`、`llm` 和 `rag_llm` 三种回答模式。`template` 为默认离线模板模式，保证没有本地模型时仍可完成问答、评测和答辩演示；`llm` 和 `rag_llm` 可通过 OpenAI-compatible `/chat/completions` 接口接入本地 Qwen、DeepSeek、Ollama、vLLM 或 LM Studio 服务。模型不可用时，系统会自动回退到模板回答，并在回答中记录失败原因。
+
+新增环境变量：
+
+```powershell
+$env:GOVTRACE_ANSWER_MODE="rag_llm"
+$env:GOVTRACE_LLM_BASE_URL="http://127.0.0.1:11434/v1"
+$env:GOVTRACE_LLM_MODEL="qwen2.5:7b-instruct"
+$env:GOVTRACE_LLM_API_KEY="ollama"
+```
+
+`GovServiceWorkflow`、命令行演示、标准库 Web Demo、`run_eval.py`、`run_retrieval_compare.py` 和 `run_ablation.py` 均已贯通该参数。追溯记录的 `metadata.answer_mode` 会记录本次回答模式，为后续论文中“模板回答 vs LLM 直接回答 vs RAG+LLM 回答”的实验对比提供工程基础。
+
 ## 提交信息
 
 - Commit: `ad1af678`

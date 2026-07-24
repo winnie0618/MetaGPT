@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import argparse
 import asyncio
 
+from metagpt.ext.government_service.config import ANSWER_MODES, DEFAULT_ANSWER_MODE
 from metagpt.ext.government_service.workflow import GovServiceWorkflow
 
 
@@ -42,7 +44,22 @@ def _print_response(resp) -> None:
 
 
 async def _main() -> None:
-    workflow = GovServiceWorkflow()
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--knowledge-backend",
+        choices=["keyword", "rag", "tfidf"],
+        default="rag",
+        help="知识库后端",
+    )
+    parser.add_argument(
+        "--answer-mode",
+        choices=sorted(ANSWER_MODES),
+        default=DEFAULT_ANSWER_MODE,
+        help="回答生成模式：template、llm 或 rag_llm",
+    )
+    args = parser.parse_args()
+
+    workflow = GovServiceWorkflow(knowledge_backend=args.knowledge_backend, answer_mode=args.answer_mode)
     print("GovTrace-Agent 命令行演示，输入 exit 退出。")
     while True:
         query = input("\n请输入政务服务问题：").strip()

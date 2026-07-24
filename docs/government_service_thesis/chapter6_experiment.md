@@ -6,7 +6,7 @@
 
 ## 6.2 对比方法
 
-论文实验可设置五类方法：普通模板回答、关键词检索 + 模板回答、本地 FAISS 检索 + 模板回答、TF-IDF 统计向量检索 + 模板回答、本文的可追溯多智能体协同方法。后续接入开源大模型后，可增加 LLM 直接回答、LLM + RAG 和 RAG + 多智能体协同方法作为对比。
+论文实验可设置五类方法：普通模板回答、关键词检索 + 模板回答、本地 FAISS 检索 + 模板回答、TF-IDF 统计向量检索 + 模板回答、本文的可追溯多智能体协同方法。系统现在已经提供 `template`、`llm` 和 `rag_llm` 三种回答模式，后续只需接入本地开源模型服务，即可增加 LLM 直接回答、LLM + RAG 和 RAG + 多智能体协同方法作为对比。
 
 当前代码已经支持通过 `--knowledge-backend` 切换检索后端：
 
@@ -14,6 +14,14 @@
 venv\Scripts\python.exe -m metagpt.ext.government_service.eval.run_eval --dataset data\government_service\test_questions.jsonl --knowledge-backend keyword --output workspace\government_service\eval_keyword.json
 venv\Scripts\python.exe -m metagpt.ext.government_service.eval.run_eval --dataset data\government_service\test_questions.jsonl --knowledge-backend rag --output workspace\government_service\eval_rag.json
 venv\Scripts\python.exe -m metagpt.ext.government_service.eval.run_eval --dataset data\government_service\test_questions.jsonl --knowledge-backend tfidf --output workspace\government_service\eval_tfidf.json
+```
+
+回答生成模式对比可使用 `--answer-mode` 参数：
+
+```powershell
+venv\Scripts\python.exe -m metagpt.ext.government_service.eval.run_eval --dataset data\government_service\test_questions.jsonl --knowledge-backend rag --answer-mode template --output workspace\government_service\eval_template.json
+venv\Scripts\python.exe -m metagpt.ext.government_service.eval.run_eval --dataset data\government_service\test_questions.jsonl --knowledge-backend rag --answer-mode rag_llm --output workspace\government_service\eval_rag_llm.json
+venv\Scripts\python.exe -m metagpt.ext.government_service.eval.run_eval --dataset data\government_service\test_questions.jsonl --knowledge-backend keyword --answer-mode llm --output workspace\government_service\eval_llm.json
 ```
 
 也可以直接运行检索对比脚本：
@@ -34,7 +42,7 @@ venv\Scripts\python.exe -m metagpt.ext.government_service.eval.run_ablation --da
 
 ## 6.3 评价指标
 
-系统当前实现了回答关键词命中率、政策依据命中率、风险等级准确率、人工复核触发准确率、材料命中率和流程步骤命中率。其中材料命中率只在 `expected_materials` 非空样本上计算，流程步骤命中率只在 `expected_process_steps` 非空样本上计算，避免无关样本稀释指标。
+系统当前实现了回答关键词命中率、政策依据命中率、风险等级准确率、人工复核触发准确率、材料命中率、流程步骤命中率和追溯记录落盘率。其中材料命中率只在 `expected_materials` 非空样本上计算，流程步骤命中率只在 `expected_process_steps` 非空样本上计算，避免无关样本稀释指标。模型生成实验还应补充幻觉率、依据覆盖率和人工评分，用于判断 LLM 模式是否在可读性提升的同时保持政务服务安全边界。
 
 ## 6.4 当前实验结果记录
 

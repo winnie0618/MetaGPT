@@ -8,6 +8,7 @@ from pathlib import Path
 
 from metagpt.const import DEFAULT_WORKSPACE_ROOT
 from metagpt.ext.government_service.actions.trace_record import TraceRecordStore
+from metagpt.ext.government_service.config import ANSWER_MODES, DEFAULT_ANSWER_MODE
 from metagpt.ext.government_service.eval.dataset import load_samples
 from metagpt.ext.government_service.eval.metrics import bool_match, contains_hit, exact_match, keyword_hit_rate
 from metagpt.ext.government_service.workflow import GovServiceWorkflow
@@ -16,6 +17,7 @@ from metagpt.ext.government_service.workflow import GovServiceWorkflow
 async def evaluate(
     dataset_path: str,
     knowledge_backend: str = "rag",
+    answer_mode: str = DEFAULT_ANSWER_MODE,
     enable_process_planner: bool = True,
     enable_risk_auditor: bool = True,
     enable_trace_record: bool = True,
@@ -30,6 +32,7 @@ async def evaluate(
     trace_store = TraceRecordStore(trace_dir=effective_trace_dir)
     workflow = GovServiceWorkflow(
         knowledge_backend=knowledge_backend,
+        answer_mode=answer_mode,
         trace_dir=effective_trace_dir,
         enable_process_planner=enable_process_planner,
         enable_risk_auditor=enable_risk_auditor,
@@ -70,6 +73,7 @@ async def evaluate(
 
     result = {
         "requested_backend": knowledge_backend,
+        "answer_mode": answer_mode,
         "actual_backend_counts": dict(sorted(backend_counter.items())),
         "sample_count": len(samples),
         "answer_keyword_hit_rate": sum(answer_scores) / len(answer_scores),
@@ -92,6 +96,7 @@ async def evaluate(
 async def _run(
     dataset_path: str,
     knowledge_backend: str = "rag",
+    answer_mode: str = DEFAULT_ANSWER_MODE,
     enable_process_planner: bool = True,
     enable_risk_auditor: bool = True,
     enable_trace_record: bool = True,
@@ -99,6 +104,7 @@ async def _run(
     result = await evaluate(
         dataset_path=dataset_path,
         knowledge_backend=knowledge_backend,
+        answer_mode=answer_mode,
         enable_process_planner=enable_process_planner,
         enable_risk_auditor=enable_risk_auditor,
         enable_trace_record=enable_trace_record,
@@ -119,6 +125,13 @@ def main() -> None:
         default="rag",
         help="知识库后端：keyword 使用关键词检索，rag 使用本地 FAISS 检索，tfidf 使用统计向量检索",
     )
+    parser.add_argument(
+        "--answer-mode",
+        type=str,
+        choices=sorted(ANSWER_MODES),
+        default=DEFAULT_ANSWER_MODE,
+        help="回答生成模式：template 离线模板，llm 模型直接生成，rag_llm 基于检索证据生成",
+    )
     parser.add_argument("--disable-process-planner", action="store_true", help="消融：关闭材料和流程规划模块")
     parser.add_argument("--disable-risk-auditor", action="store_true", help="消融：关闭风险审核模块")
     parser.add_argument("--disable-trace-record", action="store_true", help="消融：关闭追溯日志写入")
@@ -127,6 +140,7 @@ def main() -> None:
         _run(
             args.dataset,
             knowledge_backend=args.knowledge_backend,
+            answer_mode=args.answer_mode,
             enable_process_planner=not args.disable_process_planner,
             enable_risk_auditor=not args.disable_risk_auditor,
             enable_trace_record=not args.disable_trace_record,

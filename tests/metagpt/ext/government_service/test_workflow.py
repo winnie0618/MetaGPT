@@ -51,6 +51,26 @@ async def test_workflow_supports_tfidf_backend(tmp_path):
 
 
 @pytest.mark.asyncio
+async def test_workflow_records_answer_mode_in_trace_metadata(tmp_path):
+    raw_dir = tmp_path / "raw_docs"
+    trace_dir = tmp_path / "traces"
+    raw_dir.mkdir(parents=True, exist_ok=True)
+    (raw_dir / "policy_1.txt").write_text("补贴申请需要身份证明。", encoding="utf-8")
+
+    workflow = GovServiceWorkflow(
+        raw_docs_dir=str(raw_dir),
+        trace_dir=str(trace_dir),
+        knowledge_backend="keyword",
+        answer_mode="template",
+    )
+    response = await workflow.run("补贴申请需要什么材料？")
+    record = TraceRecordStore(trace_dir=trace_dir).find_by_trace_id(response.trace_id)
+
+    assert record is not None
+    assert record["metadata"]["answer_mode"] == "template"
+
+
+@pytest.mark.asyncio
 async def test_workflow_ablation_can_disable_risk_auditor(tmp_path):
     raw_dir = tmp_path / "raw_docs"
     raw_dir.mkdir(parents=True, exist_ok=True)
