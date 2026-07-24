@@ -121,9 +121,9 @@ def main() -> None:
     parser.add_argument(
         "--knowledge-backend",
         type=str,
-        choices=["keyword", "rag", "tfidf"],
+        choices=["keyword", "rag", "tfidf", "embedding"],
         default="rag",
-        help="知识库后端：keyword 使用关键词检索，rag 使用本地 FAISS 检索，tfidf 使用统计向量检索",
+        help="知识库后端：keyword 关键词检索，rag 本地哈希 FAISS，tfidf 统计向量，embedding 中文语义向量",
     )
     parser.add_argument(
         "--answer-mode",

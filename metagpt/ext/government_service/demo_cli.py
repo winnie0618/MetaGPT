@@ -47,7 +47,7 @@ async def _main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--knowledge-backend",
-        choices=["keyword", "rag", "tfidf"],
+        choices=["keyword", "rag", "tfidf", "embedding"],
         default="rag",
         help="知识库后端",
     )

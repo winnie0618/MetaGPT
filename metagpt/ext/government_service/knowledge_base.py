@@ -9,7 +9,7 @@ from typing import Any
 import numpy as np
 
 from metagpt.const import DEFAULT_WORKSPACE_ROOT
-from metagpt.ext.government_service.config import RAW_DOCS_DIR
+from metagpt.ext.government_service.config import DEFAULT_EMBEDDING_MODEL, RAW_DOCS_DIR
 from metagpt.ext.government_service.schema import PolicyEvidence
 
 
@@ -383,3 +383,186 @@ class TfidfPolicyKnowledgeBase:
         except Exception:
             pass
         return list(dict.fromkeys(terms))
+
+
+class SemanticEmbeddingPolicyKnowledgeBase:
+    """Optional Chinese embedding retriever backed by sentence-transformers and FAISS."""
+
+    def __init__(
+        self,
+        raw_docs_dir: str | Path | None = None,
+        persist_dir: str | Path | None = None,
+        model_name: str = DEFAULT_EMBEDDING_MODEL,
+    ):
+        self.raw_docs_dir = Path(raw_docs_dir) if raw_docs_dir else RAW_DOCS_DIR
+        self.persist_dir = (
+            Path(persist_dir) if persist_dir else (DEFAULT_WORKSPACE_ROOT / "government_service" / "embedding_rag")
+        )
+        self.model_name = model_name
+        self._engine: Any = None
+        self._metadata: list[dict] = []
+        self._model: Any = None
+        self._fallback = SimplePolicyKnowledgeBase(self.raw_docs_dir)
+        self._ready = False
+        self.backend = "fallback"
+        self.last_error = ""
+
+    def build_index(self) -> None:
+        self.last_error = ""
+        self._engine = None
+        self._metadata = []
+        self._ready = False
+        try:
+            import faiss
+
+            chunks = self._load_chunks()
+            if not chunks:
+                self.backend = "fallback"
+                self.last_error = "未发现可用于构建 embedding 索引的文档。"
+                return
+
+            corpus = [f"{chunk['title']}\n{chunk['snippet']}" for chunk in chunks]
+            vectors = self._encode_texts(corpus).astype("float32")
+            if vectors.ndim != 2 or vectors.shape[0] != len(chunks):
+                raise RuntimeError("embedding 模型返回的向量维度不符合预期。")
+
+            self.persist_dir.mkdir(parents=True, exist_ok=True)
+            index = faiss.IndexFlatIP(int(vectors.shape[1]))
+            index.add(vectors)
+            faiss.write_index(index, str(self._index_path))
+            payload = {
+                "fingerprint": self._docs_fingerprint(),
+                "model_name": self.model_name,
+                "chunks": chunks,
+            }
+            self._metadata_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+
+            self._engine = index
+            self._metadata = chunks
+            self._ready = True
+            self.backend = "embedding"
+        except Exception as exc:
+            self._engine = None
+            self._metadata = []
+            self._ready = False
+            self.backend = "fallback"
+            self.last_error = f"Embedding RAG 初始化失败: {exc}"
+
+    def retrieve(self, query: str, top_k: int = 3) -> list[PolicyEvidence]:
+        try:
+            self._ensure_engine()
+            if self._engine is not None and self.backend == "embedding" and self._metadata:
+                query_vector = self._encode_texts([query]).astype("float32")
+                scores, indices = self._engine.search(query_vector, min(top_k, len(self._metadata)))
+                evidences: list[PolicyEvidence] = []
+                for score, index in zip(scores[0], indices[0]):
+                    if index < 0:
+                        continue
+                    item = self._metadata[int(index)]
+                    evidences.append(
+                        PolicyEvidence(
+                            doc_id=item["doc_id"],
+                            title=item["title"],
+                            snippet=item["snippet"],
+                            score=round(float(score), 4),
+                        )
+                    )
+                if evidences:
+                    self.last_error = ""
+                    return evidences
+        except Exception as exc:
+            self._engine = None
+            self._metadata = []
+            self._ready = False
+            self.backend = "fallback"
+            self.last_error = f"Embedding RAG 检索失败: {exc}"
+
+        fallback_evidences = self._fallback.retrieve(query=query, top_k=top_k)
+        self.backend = "fallback"
+        if not self.last_error:
+            self.last_error = "Embedding RAG 未启用，使用关键词 fallback 检索。"
+        return fallback_evidences
+
+    def status(self) -> dict[str, Any]:
+        return {
+            "backend": self.backend,
+            "ready": self.backend == "embedding" and self._ready,
+            "last_error": self.last_error,
+            "raw_docs_dir": str(self.raw_docs_dir),
+            "persist_dir": str(self.persist_dir),
+            "model_name": self.model_name,
+        }
+
+    def _ensure_engine(self) -> None:
+        if self._ready and self.backend == "embedding" and self._engine is not None:
+            return
+
+        self.last_error = ""
+        try:
+            import faiss
+
+            if self._index_path.exists() and self._metadata_path.exists():
+                payload = json.loads(self._metadata_path.read_text(encoding="utf-8"))
+                if (
+                    isinstance(payload, dict)
+                    and payload.get("fingerprint") == self._docs_fingerprint()
+                    and payload.get("model_name") == self.model_name
+                ):
+                    self._engine = faiss.read_index(str(self._index_path))
+                    self._metadata = payload.get("chunks", [])
+                    self._ready = True
+                    self.backend = "embedding"
+                    return
+
+            self.build_index()
+        except Exception as exc:
+            self._engine = None
+            self._metadata = []
+            self._ready = False
+            self.backend = "fallback"
+            self.last_error = f"Embedding RAG 初始化失败: {exc}"
+
+    @property
+    def _index_path(self) -> Path:
+        return self.persist_dir / "policy_embedding.faiss"
+
+    @property
+    def _metadata_path(self) -> Path:
+        return self.persist_dir / "policy_embedding_metadata.json"
+
+    def _load_chunks(self) -> list[dict]:
+        kb = SimplePolicyKnowledgeBase(self.raw_docs_dir)
+        kb.load()
+        return kb._chunks
+
+    def _docs_fingerprint(self) -> str:
+        digest = hashlib.sha256()
+        if not self.raw_docs_dir.exists():
+            return ""
+        for file_path in sorted(self.raw_docs_dir.glob("*.txt")):
+            digest.update(file_path.name.encode("utf-8"))
+            digest.update(file_path.read_bytes())
+        return digest.hexdigest()
+
+    def _encode_texts(self, texts: list[str]) -> np.ndarray:
+        model = self._load_embedding_model()
+        try:
+            vectors = model.encode(texts, convert_to_numpy=True, normalize_embeddings=True)
+        except TypeError:
+            vectors = model.encode(texts)
+        array = np.asarray(vectors, dtype="float32")
+        if array.ndim == 1:
+            array = array.reshape(1, -1)
+        norms = np.linalg.norm(array, axis=1, keepdims=True)
+        norms[norms == 0] = 1.0
+        return array / norms
+
+    def _load_embedding_model(self) -> Any:
+        if self._model is not None:
+            return self._model
+        try:
+            from sentence_transformers import SentenceTransformer
+        except Exception as exc:
+            raise RuntimeError("请先安装 sentence-transformers 才能启用中文 embedding 检索。") from exc
+        self._model = SentenceTransformer(self.model_name)
+        return self._model

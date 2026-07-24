@@ -1,6 +1,6 @@
 # 政务服务智能体系统依赖说明
 
-本系统默认不依赖外部大模型即可运行，回答生成使用 `template` 离线模板模式。当前阶段已经支持本地 FAISS 检索、TF-IDF 统计向量检索、标准库 Web 演示，以及面向本地开源模型服务的 OpenAI-compatible 回答生成入口；中文语义 embedding 属于后续可选增强。
+本系统默认不依赖外部大模型即可运行，回答生成使用 `template` 离线模板模式。当前阶段已经支持本地哈希 FAISS 检索、TF-IDF 统计向量检索、可选中文 embedding 语义检索、标准库 Web 演示，以及面向本地开源模型服务的 OpenAI-compatible 回答生成入口。
 
 ## 基础运行
 
@@ -53,10 +53,30 @@ venv\Scripts\python.exe -m metagpt.ext.government_service.eval.run_eval --datase
 
 ## 可选语义检索增强
 
-后续若要将哈希向量替换为中文语义 embedding，可在网络条件允许时安装：
+系统已经提供 `SemanticEmbeddingPolicyKnowledgeBase`，可通过 `--knowledge-backend embedding` 启用。该后端依赖 `sentence-transformers` 和本地中文 embedding 模型；如果依赖或模型不可用，系统会自动回退到关键词检索，并在 `actual_backend_counts` 中显示为 `fallback`。
+
+网络条件允许时安装：
 
 ```powershell
 venv\Scripts\python.exe -m pip install sentence-transformers
+```
+
+默认模型为：
+
+```text
+BAAI/bge-small-zh-v1.5
+```
+
+可通过环境变量替换为本地路径或其他模型：
+
+```powershell
+$env:GOVTRACE_EMBEDDING_MODEL="D:\models\bge-small-zh-v1.5"
+```
+
+运行评测：
+
+```powershell
+venv\Scripts\python.exe -m metagpt.ext.government_service.eval.run_eval --dataset data\government_service\test_questions.jsonl --knowledge-backend embedding --output workspace\government_service\eval_embedding.json
 ```
 
 也可以继续扩展为 LlamaIndex 管线：
@@ -65,7 +85,7 @@ venv\Scripts\python.exe -m pip install sentence-transformers
 venv\Scripts\python.exe -m pip install llama-index-core llama-index-vector-stores-faiss llama-index-embeddings-huggingface sentence-transformers
 ```
 
-论文实验中建议将“关键词检索”“本地 FAISS 哈希检索”“TF-IDF 统计向量检索”“中文 embedding + FAISS 检索”作为检索对照组。
+论文实验中建议将“关键词检索”“本地哈希 FAISS 检索”“TF-IDF 统计向量检索”“中文 embedding + FAISS 检索”作为检索对照组。
 
 ## Web 演示依赖
 

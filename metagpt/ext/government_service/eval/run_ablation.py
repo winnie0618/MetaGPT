@@ -92,7 +92,7 @@ def main() -> None:
     parser.add_argument(
         "--knowledge-backend",
         type=str,
-        choices=["keyword", "rag", "tfidf"],
+        choices=["keyword", "rag", "tfidf", "embedding"],
         default="rag",
         help="用于消融实验的检索后端",
     )

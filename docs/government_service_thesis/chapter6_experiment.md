@@ -6,7 +6,7 @@
 
 ## 6.2 对比方法
 
-论文实验可设置五类方法：普通模板回答、关键词检索 + 模板回答、本地 FAISS 检索 + 模板回答、TF-IDF 统计向量检索 + 模板回答、本文的可追溯多智能体协同方法。系统现在已经提供 `template`、`llm` 和 `rag_llm` 三种回答模式，后续只需接入本地开源模型服务，即可增加 LLM 直接回答、LLM + RAG 和 RAG + 多智能体协同方法作为对比。
+论文实验可设置五类方法：普通模板回答、关键词检索 + 模板回答、本地哈希 FAISS 检索 + 模板回答、TF-IDF 统计向量检索 + 模板回答、中文 embedding 语义检索 + 模板回答、本文的可追溯多智能体协同方法。系统现在已经提供 `template`、`llm` 和 `rag_llm` 三种回答模式，后续只需接入本地开源模型服务，即可增加 LLM 直接回答、LLM + RAG 和 RAG + 多智能体协同方法作为对比。
 
 当前代码已经支持通过 `--knowledge-backend` 切换检索后端：
 
@@ -14,6 +14,7 @@
 venv\Scripts\python.exe -m metagpt.ext.government_service.eval.run_eval --dataset data\government_service\test_questions.jsonl --knowledge-backend keyword --output workspace\government_service\eval_keyword.json
 venv\Scripts\python.exe -m metagpt.ext.government_service.eval.run_eval --dataset data\government_service\test_questions.jsonl --knowledge-backend rag --output workspace\government_service\eval_rag.json
 venv\Scripts\python.exe -m metagpt.ext.government_service.eval.run_eval --dataset data\government_service\test_questions.jsonl --knowledge-backend tfidf --output workspace\government_service\eval_tfidf.json
+venv\Scripts\python.exe -m metagpt.ext.government_service.eval.run_eval --dataset data\government_service\test_questions.jsonl --knowledge-backend embedding --output workspace\government_service\eval_embedding.json
 ```
 
 回答生成模式对比可使用 `--answer-mode` 参数：
@@ -73,8 +74,9 @@ venv\Scripts\python.exe -m metagpt.ext.government_service.eval.run_ablation --da
 | keyword | {"keyword": 100} | 0.9550 | 0.8117 | 1.0000 | 1.0000 | 0.6306 | 0.9524 |
 | rag | {"rag": 100} | 0.9550 | 0.7500 | 1.0000 | 1.0000 | 0.6486 | 0.9524 |
 | tfidf | {"tfidf": 100} | 0.9750 | 0.8150 | 1.0000 | 1.0000 | 0.6081 | 0.9524 |
+| embedding | {"fallback": 100} | 0.9550 | 0.8117 | 1.0000 | 1.0000 | 0.6306 | 0.9524 |
 
-与关键词检索 baseline 相比，本地 FAISS 哈希检索在材料命中率上表现更好，但政策依据关键词命中率较低。TF-IDF 统计向量检索在回答关键词命中率和证据关键词命中率上表现最好，但材料指标不占优。流程步骤命中率在三种检索后端下均达到 0.9524，说明优化后的流程规划主要依赖“用户问题 + 检索证据”的流程语义归一能力，而不是某一个检索后端。论文中可将这一现象作为误差分析：不同检索方法对材料抽取和证据覆盖的影响并不一致，后续需要接入中文 embedding 模型进行真正的语义检索对照实验。
+与关键词检索 baseline 相比，本地 FAISS 哈希检索在材料命中率上表现更好，但政策依据关键词命中率较低。TF-IDF 统计向量检索在回答关键词命中率和证据关键词命中率上表现最好，但材料指标不占优。当前环境尚未安装中文 embedding 模型依赖，因此 `embedding` 请求后端实际全部降级为 `fallback`，其指标与关键词检索一致。流程步骤命中率在四种请求后端下均达到 0.9524，说明优化后的流程规划主要依赖“用户问题 + 检索证据”的流程语义归一能力，而不是某一个检索后端。后续在安装 `sentence-transformers` 和 `BAAI/bge-small-zh-v1.5` 后，应重新运行 embedding 组，形成真正的中文语义检索对照实验。
 
 多智能体协同消融实验结果如下：
 

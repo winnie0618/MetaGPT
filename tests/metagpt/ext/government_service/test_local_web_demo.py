@@ -4,11 +4,12 @@ from metagpt.ext.government_service.local_web_demo import ANSWER_MODES, BACKENDS
 
 
 def test_local_web_demo_exposes_retrieval_backends():
-    assert {"keyword", "rag", "tfidf"}.issubset(BACKENDS)
+    assert {"keyword", "rag", "tfidf", "embedding"}.issubset(BACKENDS)
     assert "/api/query" in INDEX_HTML
     assert "/api/trace/" in INDEX_HTML
     assert "traceQuery" in INDEX_HTML
     assert "answerModeGroup" in INDEX_HTML
+    assert "Embedding" in INDEX_HTML
     assert {"template", "llm", "rag_llm"}.issubset(ANSWER_MODES)
 
 

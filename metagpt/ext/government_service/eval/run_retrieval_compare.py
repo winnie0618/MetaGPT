@@ -57,8 +57,8 @@ def main() -> None:
     parser.add_argument(
         "--backends",
         nargs="+",
-        choices=["keyword", "rag", "tfidf"],
-        default=["keyword", "rag", "tfidf"],
+        choices=["keyword", "rag", "tfidf", "embedding"],
+        default=["keyword", "rag", "tfidf", "embedding"],
         help="需要对比的知识库后端",
     )
     parser.add_argument(

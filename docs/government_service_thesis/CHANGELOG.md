@@ -37,6 +37,23 @@ $env:GOVTRACE_LLM_API_KEY="ollama"
 
 其中流程步骤命中率从上一阶段的 0.2778 提升到 0.9524，说明流程规划智能体对政务服务回答完整性有显著贡献。
 
+## 追加更新：中文 embedding 语义检索后端
+
+系统新增 `SemanticEmbeddingPolicyKnowledgeBase`，支持通过 `--knowledge-backend embedding` 启用中文语义向量检索。该后端使用 `sentence-transformers` 加载 `BAAI/bge-small-zh-v1.5` 或环境变量 `GOVTRACE_EMBEDDING_MODEL` 指定的本地模型，将政策文本编码为归一化向量，并使用 FAISS `IndexFlatIP` 构建语义索引。索引文件保存到 `workspace/government_service/embedding_rag`，元数据记录政策文本指纹和模型名称；源文档或模型变化后会自动重建索引。
+
+该后端为可选增强：如果未安装 `sentence-transformers` 或本地模型不可用，系统会自动回退到关键词检索，并在知识库状态和评测结果中记录 `fallback`。当前环境运行四后端对比时，`embedding` 后端实际降级为：
+
+```json
+{
+  "requested_backend": "embedding",
+  "actual_backend_counts": {
+    "fallback": 100
+  }
+}
+```
+
+因此，本阶段已经完成语义检索工程入口，后续只需准备本地 embedding 模型，即可运行“关键词检索 vs 哈希 FAISS vs TF-IDF vs 中文 embedding FAISS”的完整检索实验。
+
 ## 提交信息
 
 - Commit: `ad1af678`

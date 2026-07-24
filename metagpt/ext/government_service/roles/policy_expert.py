@@ -3,6 +3,7 @@ from __future__ import annotations
 from metagpt.ext.government_service.actions.policy_retrieve import PolicyRetrieveAction
 from metagpt.ext.government_service.knowledge_base import (
     RAGPolicyKnowledgeBase,
+    SemanticEmbeddingPolicyKnowledgeBase,
     SimplePolicyKnowledgeBase,
     TfidfPolicyKnowledgeBase,
 )
@@ -11,7 +12,7 @@ from metagpt.ext.government_service.schema import PolicyEvidence
 
 class PolicyExpert:
     def __init__(self, raw_docs_dir: str | None = None, knowledge_backend: str = "rag"):
-        if knowledge_backend not in {"keyword", "rag", "tfidf"}:
+        if knowledge_backend not in {"keyword", "rag", "tfidf", "embedding"}:
             raise ValueError(f"Unsupported knowledge_backend: {knowledge_backend}")
         self.action = PolicyRetrieveAction(raw_docs_dir=raw_docs_dir)
         self.knowledge_backend = knowledge_backend
@@ -19,6 +20,8 @@ class PolicyExpert:
             self.knowledge_base = SimplePolicyKnowledgeBase(raw_docs_dir=raw_docs_dir)
         elif knowledge_backend == "tfidf":
             self.knowledge_base = TfidfPolicyKnowledgeBase(raw_docs_dir=raw_docs_dir)
+        elif knowledge_backend == "embedding":
+            self.knowledge_base = SemanticEmbeddingPolicyKnowledgeBase(raw_docs_dir=raw_docs_dir)
         else:
             self.knowledge_base = RAGPolicyKnowledgeBase(raw_docs_dir=raw_docs_dir)
         self.last_status: dict = {}

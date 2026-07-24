@@ -13,7 +13,7 @@ from metagpt.ext.government_service.config import ANSWER_MODES, DEFAULT_ANSWER_M
 from metagpt.ext.government_service.workflow import GovServiceWorkflow
 
 
-BACKENDS = {"keyword", "rag", "tfidf"}
+BACKENDS = {"keyword", "rag", "tfidf", "embedding"}
 DEFAULT_QUERY = "高校毕业生创业补贴需要哪些材料，办理流程是什么？"
 
 
@@ -449,6 +449,7 @@ INDEX_HTML = """
           <button type="button" data-backend="rag" class="active">FAISS</button>
           <button type="button" data-backend="keyword">Keyword</button>
           <button type="button" data-backend="tfidf">TF-IDF</button>
+          <button type="button" data-backend="embedding">Embedding</button>
         </div>
         <label>回答模式</label>
         <div class="segmented" id="answerModeGroup">
