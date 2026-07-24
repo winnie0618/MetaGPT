@@ -46,7 +46,10 @@ class ServiceCoordinator:
 
         process_steps = []
         materials = []
-        if self.enable_process_planner and intent.intent in {"process_plan", "mixed", "qualification_check"}:
+        should_build_steps = intent.intent in {"process_plan", "mixed", "qualification_check"} or self._mentions_process(
+            query
+        )
+        if self.enable_process_planner and should_build_steps:
             process_steps = await self.process_planner.build_steps(query, evidences)
         if self.enable_process_planner and intent.intent in {"material_checklist", "mixed", "qualification_check"}:
             materials = await self.process_planner.build_materials(query, evidences)
@@ -120,4 +123,23 @@ class ServiceCoordinator:
     def _new_trace_id() -> str:
         ts = datetime.now().strftime("%Y%m%d-%H%M%S")
         return f"{ts}-{uuid.uuid4().hex[:6]}"
+
+    @staticmethod
+    def _mentions_process(query: str) -> bool:
+        process_tokens = (
+            "流程",
+            "步骤",
+            "办理",
+            "提交",
+            "受理",
+            "审核",
+            "审批",
+            "公示",
+            "发放",
+            "到账",
+            "补正",
+            "申诉",
+            "复核",
+        )
+        return any(token in query for token in process_tokens)
 

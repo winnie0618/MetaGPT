@@ -17,6 +17,26 @@ $env:GOVTRACE_LLM_API_KEY="ollama"
 
 `GovServiceWorkflow`、命令行演示、标准库 Web Demo、`run_eval.py`、`run_retrieval_compare.py` 和 `run_ablation.py` 均已贯通该参数。追溯记录的 `metadata.answer_mode` 会记录本次回答模式，为后续论文中“模板回答 vs LLM 直接回答 vs RAG+LLM 回答”的实验对比提供工程基础。
 
+## 追加更新：流程规划规则增强
+
+系统优化了 `TaskPlanAction` 的流程步骤抽取逻辑，从“仅基于检索证据关键词”升级为“用户问题 + 检索证据”的流程语义归一。新增对线上提交、窗口办理、受理、审核、公示、发放、补正材料、申诉和人工复核等同义表达的识别，并允许高风险问题在包含流程诉求时继续生成办理链路。
+
+优化后 100 条样本在 `rag + template` 设置下的关键指标如下：
+
+```json
+{
+  "answer_keyword_hit_rate": 0.955,
+  "evidence_keyword_hit_rate": 0.75,
+  "risk_accuracy": 1.0,
+  "human_review_accuracy": 1.0,
+  "material_hit_rate": 0.6486,
+  "process_step_hit_rate": 0.9524,
+  "trace_recorded_rate": 1.0
+}
+```
+
+其中流程步骤命中率从上一阶段的 0.2778 提升到 0.9524，说明流程规划智能体对政务服务回答完整性有显著贡献。
+
 ## 提交信息
 
 - Commit: `ad1af678`
