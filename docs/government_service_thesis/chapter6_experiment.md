@@ -54,11 +54,11 @@ venv\Scripts\python.exe -m metagpt.ext.government_service.eval.run_ablation --da
 ```json
 {
   "sample_count": 100,
-  "answer_keyword_hit_rate": 0.955,
+  "answer_keyword_hit_rate": 0.995,
   "evidence_keyword_hit_rate": 0.75,
   "risk_accuracy": 1.0,
   "human_review_accuracy": 1.0,
-  "material_hit_rate": 0.6486,
+  "material_hit_rate": 0.9730,
   "process_step_hit_rate": 0.9524,
   "trace_recorded_rate": 1.0,
   "material_sample_count": 37,
@@ -71,21 +71,21 @@ venv\Scripts\python.exe -m metagpt.ext.government_service.eval.run_ablation --da
 
 | backend | actual_backend_counts | answer_keyword_hit_rate | evidence_keyword_hit_rate | risk_accuracy | human_review_accuracy | material_hit_rate | process_step_hit_rate |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| keyword | {"keyword": 100} | 0.9550 | 0.8117 | 1.0000 | 1.0000 | 0.6306 | 0.9524 |
-| rag | {"rag": 100} | 0.9550 | 0.7500 | 1.0000 | 1.0000 | 0.6486 | 0.9524 |
-| tfidf | {"tfidf": 100} | 0.9750 | 0.8150 | 1.0000 | 1.0000 | 0.6081 | 0.9524 |
-| embedding | {"fallback": 100} | 0.9550 | 0.8117 | 1.0000 | 1.0000 | 0.6306 | 0.9524 |
+| keyword | {"keyword": 100} | 0.9950 | 0.8117 | 1.0000 | 1.0000 | 0.9640 | 0.9524 |
+| rag | {"rag": 100} | 0.9950 | 0.7500 | 1.0000 | 1.0000 | 0.9730 | 0.9524 |
+| tfidf | {"tfidf": 100} | 0.9950 | 0.8150 | 1.0000 | 1.0000 | 0.9550 | 0.9524 |
+| embedding | {"fallback": 100} | 0.9950 | 0.8117 | 1.0000 | 1.0000 | 0.9640 | 0.9524 |
 
-与关键词检索 baseline 相比，本地 FAISS 哈希检索在材料命中率上表现更好，但政策依据关键词命中率较低。TF-IDF 统计向量检索在回答关键词命中率和证据关键词命中率上表现最好，但材料指标不占优。当前环境尚未安装中文 embedding 模型依赖，因此 `embedding` 请求后端实际全部降级为 `fallback`，其指标与关键词检索一致。流程步骤命中率在四种请求后端下均达到 0.9524，说明优化后的流程规划主要依赖“用户问题 + 检索证据”的流程语义归一能力，而不是某一个检索后端。后续在安装 `sentence-transformers` 和 `BAAI/bge-small-zh-v1.5` 后，应重新运行 embedding 组，形成真正的中文语义检索对照实验。
+与关键词检索 baseline 相比，本地 FAISS 哈希检索在材料命中率上表现更好，但政策依据关键词命中率较低。TF-IDF 统计向量检索在证据关键词命中率上表现最好，但材料指标不占优。当前环境尚未安装中文 embedding 模型依赖，因此 `embedding` 请求后端实际全部降级为 `fallback`，其指标与关键词检索一致。材料清单命中率在规则增强后达到 0.9730，说明材料同义词归一和查询上下文识别显著改善了政务服务回答的完整性。流程步骤命中率在四种请求后端下均达到 0.9524，说明优化后的流程规划主要依赖“用户问题 + 检索证据”的流程语义归一能力，而不是某一个检索后端。后续在安装 `sentence-transformers` 和 `BAAI/bge-small-zh-v1.5` 后，应重新运行 embedding 组，形成真正的中文语义检索对照实验。
 
 多智能体协同消融实验结果如下：
 
 | variant | answer_keyword_hit_rate | evidence_keyword_hit_rate | risk_accuracy | human_review_accuracy | material_hit_rate | process_step_hit_rate | trace_recorded_rate |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| full | 0.9550 | 0.7500 | 1.0000 | 1.0000 | 0.6486 | 0.9524 | 1.0000 |
+| full | 0.9950 | 0.7500 | 1.0000 | 1.0000 | 0.9730 | 0.9524 | 1.0000 |
 | no_process_planner | 0.6150 | 0.7500 | 1.0000 | 1.0000 | 0.0000 | 0.0000 | 1.0000 |
-| no_risk_auditor | 0.8450 | 0.7500 | 0.5400 | 0.7700 | 0.6486 | 0.9524 | 1.0000 |
-| no_trace_record | 0.9550 | 0.7500 | 1.0000 | 1.0000 | 0.6486 | 0.9524 | 0.0000 |
+| no_risk_auditor | 0.8850 | 0.7500 | 0.5400 | 0.7700 | 0.9730 | 0.9524 | 1.0000 |
+| no_trace_record | 0.9950 | 0.7500 | 1.0000 | 1.0000 | 0.9730 | 0.9524 | 0.0000 |
 
 结果表明，流程规划智能体直接决定材料清单和办理步骤生成能力；风险审核智能体显著影响风险等级识别和人工复核触发准确率；追溯记录模块不改变回答文本质量，但决定系统能否形成可复查的执行链路。因此，本文的多智能体协同设计对服务完整性、安全性和可追溯性均具有明确贡献。
 

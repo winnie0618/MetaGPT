@@ -54,6 +54,26 @@ $env:GOVTRACE_LLM_API_KEY="ollama"
 
 因此，本阶段已经完成语义检索工程入口，后续只需准备本地 embedding 模型，即可运行“关键词检索 vs 哈希 FAISS vs TF-IDF vs 中文 embedding FAISS”的完整检索实验。
 
+## 追加更新：材料清单同义词归一增强
+
+系统优化了 `MaterialChecklistAction` 的材料抽取逻辑，从“仅基于检索证据关键词”升级为“用户问题 + 检索证据”的材料同义词归一。新增对身份证、毕业证、就业证明、劳动合同、营业执照、银行卡、银行账户、申请表和承诺书等表达的规范化映射，并允许政策咨询类问题在包含材料诉求时触发材料清单生成。
+
+优化后 100 条样本在 `rag + template` 设置下的关键指标如下：
+
+```json
+{
+  "answer_keyword_hit_rate": 0.995,
+  "evidence_keyword_hit_rate": 0.75,
+  "risk_accuracy": 1.0,
+  "human_review_accuracy": 1.0,
+  "material_hit_rate": 0.9730,
+  "process_step_hit_rate": 0.9524,
+  "trace_recorded_rate": 1.0
+}
+```
+
+其中材料命中率从上一阶段的 0.6486 提升到 0.9730，说明材料规划智能体对政务服务回答完整性有显著贡献。
+
 ## 提交信息
 
 - Commit: `ad1af678`

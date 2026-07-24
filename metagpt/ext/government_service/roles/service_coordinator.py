@@ -51,7 +51,10 @@ class ServiceCoordinator:
         )
         if self.enable_process_planner and should_build_steps:
             process_steps = await self.process_planner.build_steps(query, evidences)
-        if self.enable_process_planner and intent.intent in {"material_checklist", "mixed", "qualification_check"}:
+        should_build_materials = intent.intent in {"material_checklist", "mixed", "qualification_check"} or self._mentions_material(
+            query
+        )
+        if self.enable_process_planner and should_build_materials:
             materials = await self.process_planner.build_materials(query, evidences)
 
         if self.enable_risk_auditor:
@@ -142,4 +145,25 @@ class ServiceCoordinator:
             "复核",
         )
         return any(token in query for token in process_tokens)
+
+    @staticmethod
+    def _mentions_material(query: str) -> bool:
+        material_tokens = (
+            "材料",
+            "材料清单",
+            "身份证",
+            "身份证明",
+            "毕业证",
+            "毕业证书",
+            "就业协议",
+            "劳动合同",
+            "就业证明",
+            "创业证明",
+            "营业执照",
+            "银行卡",
+            "银行账户",
+            "申请表",
+            "承诺书",
+        )
+        return any(token in query for token in material_tokens)
 
